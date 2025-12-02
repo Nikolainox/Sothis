@@ -48,7 +48,7 @@ body {
   height: 14px;
   border-radius: 999px;
   background: radial-gradient(circle at 30% 30%, #6c5ce7, #00cec9);
-  box-shadow: 0 0 16px rgba(0, 206, 201, 0.7);
+  box-shadow: 0 0 18px rgba(0, 206, 201, 0.8);
 }
 
 .brand-title {
@@ -96,47 +96,135 @@ body {
   font-weight: 500;
 }
 
-/* HUB SCOREBOARD */
+/* Pillars */
 
-.hub-strip {
-  margin: 10px 0 16px;
-  padding: 8px 12px;
-  border-radius: 16px;
-  background: linear-gradient(90deg, rgba(8, 10, 18, 0.96), rgba(11, 18, 28, 0.96));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.pillars {
   display: flex;
   gap: 10px;
-  overflow-x: auto;
+  margin: 14px 0 18px;
+  flex-wrap: wrap;
 }
 
-.hub-strip::-webkit-scrollbar {
-  height: 3px;
-}
-.hub-strip::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-}
-
-.hub-item {
-  min-width: 90px;
+.pillar-card {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 10px 12px;
+  border-radius: 18px;
+  background: radial-gradient(circle at top, #181b28, #070810);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
-.hub-label {
-  font-size: 10px;
-  opacity: 0.7;
+.pillar-title {
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
+  opacity: 0.75;
 }
 
-.hub-value {
-  font-size: 15px;
+.pillar-bar {
+  position: relative;
+  height: 190px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0b0d16, #05050a);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.pillar-segment {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform-origin: bottom;
+}
+
+/* Cashflow segments */
+
+.cash-pos {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, #00f5a0, #00c9a7);
+}
+
+.cash-fixed {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+}
+
+.cash-neg {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, #ff7675, #d63031);
+}
+
+/* Wealth segments */
+
+.wealth-real {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, #00cec9, #0984e3);
+}
+
+.wealth-ghost {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, rgba(255, 230, 109, 0.85), rgba(253, 203, 110, 0.75));
+  mix-blend-mode: screen;
+}
+
+.wealth-dark {
+  bottom: 0;
+  height: 0%;
+  background: linear-gradient(180deg, rgba(255, 118, 117, 0.85), rgba(214, 48, 49, 0.9));
+  mix-blend-mode: screen;
+}
+
+/* Emotion */
+
+.emotion-bar {
+  background: radial-gradient(circle at 30% 0, #341f97, #05060a);
+}
+
+.emotion-core {
+  bottom: 0;
+  height: 60%;
+  background: radial-gradient(circle at 50% 0, #00cec9, #6c5ce7);
+  opacity: 0.95;
+}
+
+/* Pillar info */
+
+.pillar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pillar-metric {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.pillar-metric .label {
+  opacity: 0.7;
+}
+
+.pillar-metric .value {
   font-weight: 600;
 }
 
-/* Rows / cards */
+.pillar-hint {
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+/* Rows & cards */
 
 .row {
   padding: 4px 0;
@@ -196,7 +284,7 @@ body {
 
 .card-subtext {
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .big-number {
@@ -204,7 +292,7 @@ body {
   font-weight: 600;
 }
 
-/* Inputs */
+/* Inputs & buttons */
 
 .input-field {
   width: 100%;
@@ -220,8 +308,6 @@ body {
   outline: none;
   border-color: rgba(0, 206, 201, 0.8);
 }
-
-/* Buttons */
 
 .primary-btn {
   padding: 8px 12px;
@@ -240,96 +326,69 @@ body {
   transform: scale(0.96);
 }
 
-/* Identity buttons */
+/* Purchase panel */
 
-.identity-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 6px 0;
-}
-
-.identity-btn {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: transparent;
-  color: #f5f5f5;
-  font-size: 11px;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.identity-btn.active {
-  background: rgba(0, 206, 201, 0.25);
-  border-color: rgba(0, 206, 201, 0.9);
-}
-
-/* Emotion buttons */
-
-.state-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 6px 0;
-}
-
-.state-btn {
-  padding: 5px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: transparent;
-  color: #f5f5f5;
-  font-size: 11px;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.state-btn.active {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-/* Chart */
-
-.card-chart {
-  min-width: 320px;
-}
-
-#trajectoryChart {
-  width: 100%;
-  border-radius: 12px;
+.purchase-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: -260px;
+  padding: 8px 12px 24px;
   background: radial-gradient(circle at top, #181b28, #05060a);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.7);
+  transform: translateY(0);
+  transition: transform 0.25s ease-out;
+  max-width: 1120px;
+  margin: 0 auto;
 }
 
-.chart-legend {
+.purchase-panel.open {
+  transform: translateY(-260px);
+}
+
+.purchase-inner {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.purchase-header {
   display: flex;
-  gap: 12px;
+  justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
+  gap: 8px;
+}
+
+.purchase-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+}
+
+.purchase-grid {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.purchase-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.purchase-field label {
   font-size: 11px;
   opacity: 0.8;
-  flex-wrap: wrap;
-}
-
-.legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.legend-real {
-  background: #00cec9;
-}
-
-.legend-ghost {
-  background: #ffe66d;
-}
-
-.legend-dark {
-  background: #ff7675;
 }
 
 /* Responsive */
@@ -345,7 +404,19 @@ body {
     text-align: left;
   }
 
+  .pillars {
+    flex-direction: column;
+  }
+
+  .pillar-card {
+    min-width: 100%;
+  }
+
   .card {
     min-width: 185px;
+  }
+
+  .purchase-panel.open {
+    transform: translateY(-290px);
   }
 }
