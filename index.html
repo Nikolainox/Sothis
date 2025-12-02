@@ -2,115 +2,99 @@
 <html lang="fi">
 <head>
   <meta charset="UTF-8">
+  <title>Ghost Finance – AI CFO</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOTHIS LX – Holographic Vault OS</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">GF</div>
+        <div class="brand-text">
+          <h1>Ghost Finance</h1>
+          <p>AI-CFO. Monte Carlo. Bayes. Behavior Engine.</p>
+        </div>
+      </div>
+      <div class="user-goal">
+        <span>Velkatavoite:</span>
+        <strong>Maksa velka. Rakenna holvi. Optimoi tulevaisuus.</strong>
+      </div>
+    </header>
 
-  <!-- HOLOGRAM BACKGROUND GRID -->
-  <canvas id="grid"></canvas>
+    <main class="app-main">
+      <!-- KPI paneeli -->
+      <section class="kpi-panel">
+        <div class="kpi-card">
+          <h2>Nykyinen tila</h2>
+          <div class="kpi-row"><span>Säästöt</span><strong id="kpi-savings">0 €</strong></div>
+          <div class="kpi-row"><span>Velka</span><strong id="kpi-debt">0 €</strong></div>
+          <div class="kpi-row"><span>Netto / kk</span><strong id="kpi-net-monthly">0 €</strong></div>
+          <div class="kpi-row"><span>Velaton aika:</span><strong id="kpi-debt-free-date">–</strong></div>
+        </div>
 
-  <!-- ROTATING HOLOGRAPHIC VAULT CORE -->
-  <div id="vault-container">
-    <div id="vault-outer-ring"></div>
-    <div id="vault-inner-ring"></div>
-    <div id="vault-core">
-      <h2>SOTHIS LX</h2>
-      <p id="jarvis-brief">
-        Holvi odottaa dataa. Syötä luvut alhaalta ja pyöräytä kerroksia swipellä.
-      </p>
-    </div>
+        <div class="kpi-card">
+          <h2>Psykologinen profiili</h2>
+          <p id="behavior-summary">Mallinnetaan…</p>
+          <p id="bayes-prob">Impulssiostos todennäköisyys: –</p>
+        </div>
+
+        <div class="kpi-card warning-card">
+          <h2>Jarvis CFO</h2>
+          <p id="cfo-message">Valmis analysoimaan seuraavan ostoksen.</p>
+        </div>
+      </section>
+
+      <!-- Keskipaneeli -->
+      <section class="main-panel">
+        <div class="chart-container">
+          <h2>Ghost-trajectory (24 kk)</h2>
+          <canvas id="trajectoryChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h2>Monte Carlo – varallisuusjakauma</h2>
+          <canvas id="mcHistogram"></canvas>
+        </div>
+
+        <div class="sim-panel">
+          <div class="sim-form">
+            <h2>Simuloi ostos</h2>
+
+            <label for="purchase-amount">Ostohinta (€)</label>
+            <input type="number" id="purchase-amount" min="0" step="50" value="2000">
+
+            <label for="purchase-category">Kategoria</label>
+            <select id="purchase-category">
+              <option value="rolex">Rolex / luksuskello</option>
+              <option value="tech">Tekniikka</option>
+              <option value="car">Auto</option>
+              <option value="lifestyle">Lifestyle / ruokailu</option>
+              <option value="other">Muu ostos</option>
+            </select>
+
+            <button id="simulate-btn">Simuloi</button>
+            <button id="reset-btn" class="secondary">Reset</button>
+          </div>
+
+          <div class="sim-result">
+            <h2>AI-CFO arvio</h2>
+            <ul class="result-list">
+              <li><span>Velaton ero:</span><strong id="result-debt-diff">–</strong></li>
+              <li><span>Säästöero:</span><strong id="result-savings-diff">–</strong></li>
+              <li><span>Riskitaso:</span><strong id="result-risk">–</strong></li>
+              <li><span>Ostopäätös:</span><strong id="result-afford">–</strong></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Ghost Finance © AI-CFO – Monte Carlo, Bayes, Psychological Engine.</p>
+    </footer>
   </div>
 
-  <!-- DATA PANEL (TESLA-LIVE PANEL) -->
-  <div id="data-panel">
-    <h3>Holvin ydindata</h3>
-
-    <label for="in-income">Tulot / kk</label>
-    <input type="number" id="in-income" placeholder="€ / kk">
-
-    <label for="in-expenses">Menot / kk</label>
-    <input type="number" id="in-expenses" placeholder="€ / kk">
-
-    <label for="in-savings">Säästöt</label>
-    <input type="number" id="in-savings" placeholder="€">
-
-    <label for="in-debt">Velka</label>
-    <input type="number" id="in-debt" placeholder="€">
-
-    <label for="in-housing">Asuntotavoite</label>
-    <input type="number" id="in-housing" placeholder="€">
-
-    <label for="risk-profile">Riskiprofiili</label>
-    <select id="risk-profile">
-      <option value="conservative">Conservative</option>
-      <option value="balanced" selected>Balanced</option>
-      <option value="aggressive">Aggressive</option>
-    </select>
-
-    <button id="btn-update">Päivitä holvi & tallenna snapshot</button>
-  </div>
-
-  <!-- LAYER 1: WEALTH FORECAST -->
-  <div class="layer" id="layer-forecast">
-    <h3>Varallisuusennuste (12 kk)</h3>
-    <div class="metric">
-      <p>Deterministinen netto-ennuste</p>
-      <h1 id="m-forecast">–</h1>
-    </div>
-    <div class="metric">
-      <p>Monte Carlo onnistuminen</p>
-      <h1 id="m-mc">–</h1>
-    </div>
-    <div class="metric">
-      <p>Mediaani varallisuus (MC)</p>
-      <h1 id="m-median">–</h1>
-    </div>
-    <div class="metric">
-      <p>Kehityskäyrä (snapshot-historia)</p>
-      <div id="history-sparkline"></div>
-    </div>
-    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe → riskit • Swipe ↑ tavoitteet</p>
-  </div>
-
-  <!-- LAYER 2: DEBT + RISK -->
-  <div class="layer" id="layer-risk">
-    <h3>Risk & Velka</h3>
-    <div class="metric">
-      <p>Riskitaso</p>
-      <h1 id="m-risk">–</h1>
-    </div>
-    <div class="metric">
-      <p>Volatiliteetti (profiili)</p>
-      <h1 id="m-vol">–</h1>
-    </div>
-    <div class="metric">
-      <p>Velka & arvioitu poistumisaika</p>
-      <h1 id="m-debtclear">–</h1>
-    </div>
-    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe ← ennuste • Swipe ↑ tavoitteet</p>
-  </div>
-
-  <!-- LAYER 3: GOALS -->
-  <div class="layer" id="layer-goals">
-    <h3>Tavoitteet & Ghost-polku</h3>
-    <div class="metric">
-      <p>Asuntotavoite – aika</p>
-      <h1 id="m-housing">–</h1>
-    </div>
-    <div class="metric">
-      <p>Todennäköisyys saavuttaa tavoite</p>
-      <h1 id="m-prob">–</h1>
-    </div>
-    <div class="metric">
-      <p>Ghost-skenaario ( +10% parempi säästörytmi )</p>
-      <h1 id="m-ghost">–</h1>
-    </div>
-    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe ← ennuste • Swipe → riskit</p>
-  </div>
-
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
