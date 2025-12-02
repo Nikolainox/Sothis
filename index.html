@@ -3,213 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOTHIS X — Finance Vault</title>
+  <title>SOTHIS LX – Holographic Vault OS</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <canvas id="holo-grid"></canvas>
 
-  <div id="app">
-    <!-- TOP HUD -->
-    <header class="hud-top">
-      <div class="brand">
-        <span class="dot"></span>
-        <span class="brand-name">SOTHIS X</span>
-      </div>
-      <div class="system-info">
-        <span id="jarvis-status">JARVIS: ONLINE</span>
-        <span id="vault-mode">FINANCE VAULT</span>
-      </div>
-    </header>
+  <!-- HOLOGRAM BACKGROUND GRID -->
+  <canvas id="grid"></canvas>
 
-    <!-- JARVIS PANEL -->
-    <section class="jarvis-box">
-      <h3>JARVIS</h3>
-      <p id="jarvis-output">
-        Tervetuloa holviin. Syötä tulot, menot, säästöt ja velka – minä ennustan loput.
+  <!-- ROTATING HOLOGRAPHIC VAULT CORE -->
+  <div id="vault-container">
+    <div id="vault-outer-ring"></div>
+    <div id="vault-inner-ring"></div>
+    <div id="vault-core">
+      <h2>SOTHIS LX</h2>
+      <p id="jarvis-brief">
+        Holvi odottaa dataa. Syötä luvut alhaalta ja pyöräytä kerroksia swipellä.
       </p>
-    </section>
+    </div>
+  </div>
 
-    <!-- VAULT OVERVIEW -->
-    <main class="main-area">
-      <section class="vault-grid" id="vault-grid">
-        <article class="vault-cell">
-          <h4>Tulot / kk</h4>
-          <div class="value" id="cell-income">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Menot / kk</h4>
-          <div class="value" id="cell-expenses">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Kuukausi-ylijäämä</h4>
-          <div class="value" id="cell-surplus">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Säästöt</h4>
-          <div class="value" id="cell-savings">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Velka</h4>
-          <div class="value" id="cell-debt">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>12 kk netto-ennuste</h4>
-          <div class="value" id="cell-forecast">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Asuntotavoite</h4>
-          <div class="value" id="cell-housing">–</div>
-        </article>
-        <article class="vault-cell">
-          <h4>Riskitaso</h4>
-          <div class="value" id="cell-risk">–</div>
-        </article>
-      </section>
+  <!-- DATA PANEL (TESLA-LIVE PANEL) -->
+  <div id="data-panel">
+    <h3>Holvin ydindata</h3>
 
-      <!-- CORE CONFIG -->
-      <section class="panel panel-config" id="panel-config">
-        <h3>Perusdata (holvin ydinarvot)</h3>
-        <div class="field-grid">
-          <div class="field">
-            <label for="in-income">Tulot / kk</label>
-            <input type="number" id="in-income" placeholder="€ / kk">
-          </div>
-          <div class="field">
-            <label for="in-expenses">Menot / kk</label>
-            <input type="number" id="in-expenses" placeholder="€ / kk">
-          </div>
-          <div class="field">
-            <label for="in-savings">Säästöt</label>
-            <input type="number" id="in-savings" placeholder="€">
-          </div>
-          <div class="field">
-            <label for="in-debt">Velka</label>
-            <input type="number" id="in-debt" placeholder="€">
-          </div>
-          <div class="field">
-            <label for="in-housing">Asuntotavoite (käsiraha tms.)</label>
-            <input type="number" id="in-housing" placeholder="€">
-          </div>
-        </div>
-        <button id="btn-update-core" class="primary-btn">Päivitä holvi</button>
-      </section>
+    <label for="in-income">Tulot / kk</label>
+    <input type="number" id="in-income" placeholder="€ / kk">
 
-      <!-- TABS -->
-      <nav class="bottom-nav">
-        <button class="nav-btn active" data-panel="overview">Yleisnäkymä</button>
-        <button class="nav-btn" data-panel="purchase">Ostos A.I.</button>
-        <button class="nav-btn" data-panel="bills">Laskut / PaySmart</button>
-        <button class="nav-btn" data-panel="goals">Tavoitteet</button>
-      </nav>
+    <label for="in-expenses">Menot / kk</label>
+    <input type="number" id="in-expenses" placeholder="€ / kk">
 
-      <!-- PANELS -->
+    <label for="in-savings">Säästöt</label>
+    <input type="number" id="in-savings" placeholder="€">
 
-      <!-- OVERVIEW PANEL -->
-      <section class="panel panel-overview active" id="panel-overview">
-        <h3>Holvin tilanne</h3>
-        <div class="info-row">
-          <div>
-            <h4>Hyvien päätösten arvio</h4>
-            <div class="big-number" id="cell-bayes">–</div>
-            <p class="small">
-              Bayes-pohjainen arvio siitä, että seuraava kuukausi menee plussalle tällä rytmillä.
-            </p>
-          </div>
-          <div>
-            <h4>12 kk onnistumis-%</h4>
-            <div class="big-number" id="cell-mc">–</div>
-            <p class="small">
-              Monte Carlo -simulaatio: todennäköisyys, että olet 12 kuukauden päästä plus-merkillä.
-            </p>
-          </div>
-        </div>
-      </section>
+    <label for="in-debt">Velka</label>
+    <input type="number" id="in-debt" placeholder="€">
 
-      <!-- PURCHASE AI PANEL -->
-      <section class="panel panel-purchase" id="panel-purchase">
-        <h3>Ostos A.I. — Haamuostos & takaisinmaksu</h3>
-        <div class="field-grid">
-          <div class="field">
-            <label for="purchase-amount">Ostoksen summa</label>
-            <input type="number" id="purchase-amount" placeholder="€">
-          </div>
-          <div class="field">
-            <label for="purchase-type">Ostoksen tyyppi</label>
-            <select id="purchase-type">
-              <option value="consumer">Kulutus (vaatteet, elektroniikka…)</option>
-              <option value="food">Ruoka / arki</option>
-              <option value="experience">Kokemus / hyvinvointi</option>
-              <option value="tool">Työkalu / itseensä sijoitus</option>
-              <option value="invest">Sijoitus</option>
-              <option value="debt">Velan lyhennys</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="purchase-frequency">Toistuvuus</label>
-            <select id="purchase-frequency">
-              <option value="once">Kertaluonteinen</option>
-              <option value="monthly">Joka kuukausi</option>
-            </select>
-          </div>
-        </div>
-        <button id="btn-analyze-purchase" class="primary-btn">Analysoi ostos</button>
+    <label for="in-housing">Asuntotavoite</label>
+    <input type="number" id="in-housing" placeholder="€">
 
-        <div class="result-block">
-          <h4>Ennuste</h4>
-          <p id="purchase-summary">
-            Syötä ostos, niin arvioin vaikutuksen 12 kuukauden varallisuuskäyrään.
-          </p>
-          <p id="purchase-ghost"></p>
-          <p id="purchase-prob"></p>
-          <p id="purchase-payback"></p>
-        </div>
-      </section>
+    <label for="risk-profile">Riskiprofiili</label>
+    <select id="risk-profile">
+      <option value="conservative">Conservative</option>
+      <option value="balanced" selected>Balanced</option>
+      <option value="aggressive">Aggressive</option>
+    </select>
 
-      <!-- BILLS / PAYSMART PANEL -->
-      <section class="panel panel-bills" id="panel-bills">
-        <h3>Laskut & PaySmart</h3>
-        <div class="field-grid">
-          <div class="field">
-            <label for="bill-amount">Laskun summa</label>
-            <input type="number" id="bill-amount" placeholder="€">
-          </div>
-          <div class="field">
-            <label for="bill-due">Eräpäivä (pv / 1–31)</label>
-            <input type="number" id="bill-due" placeholder="päivä kuukaudessa">
-          </div>
-        </div>
-        <button id="btn-analyze-bill" class="primary-btn">Suosittele maksuaikaa</button>
-        <div class="result-block">
-          <h4>Jarvis-suositus</h4>
-          <p id="bill-summary">
-            Syötä laskun tiedot, niin arvioin milloin sinun kannattaa maksaa se suhteessa tuloihin ja kassavirtaan.
-          </p>
-        </div>
-      </section>
+    <button id="btn-update">Päivitä holvi & tallenna snapshot</button>
+  </div>
 
-      <!-- GOALS PANEL -->
-      <section class="panel panel-goals" id="panel-goals">
-        <h3>Tavoitteet — Asunto & vapaus</h3>
-        <div class="info-row">
-          <div>
-            <h4>Asuntotavoite</h4>
-            <div class="big-number" id="goal-housing-months">–</div>
-            <p class="small" id="goal-housing-text">
-              Syötä käsiraha-tavoite perusdatassa, niin arvioin ajan.
-            </p>
-          </div>
-          <div>
-            <h4>Taloudellinen hengitysvara</h4>
-            <div class="big-number" id="goal-buffer">–</div>
-            <p class="small" id="goal-buffer-text">
-              Kuinka monen kuukauden menot voisit maksaa säästöillä.
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
+  <!-- LAYER 1: WEALTH FORECAST -->
+  <div class="layer" id="layer-forecast">
+    <h3>Varallisuusennuste (12 kk)</h3>
+    <div class="metric">
+      <p>Deterministinen netto-ennuste</p>
+      <h1 id="m-forecast">–</h1>
+    </div>
+    <div class="metric">
+      <p>Monte Carlo onnistuminen</p>
+      <h1 id="m-mc">–</h1>
+    </div>
+    <div class="metric">
+      <p>Mediaani varallisuus (MC)</p>
+      <h1 id="m-median">–</h1>
+    </div>
+    <div class="metric">
+      <p>Kehityskäyrä (snapshot-historia)</p>
+      <div id="history-sparkline"></div>
+    </div>
+    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe → riskit • Swipe ↑ tavoitteet</p>
+  </div>
+
+  <!-- LAYER 2: DEBT + RISK -->
+  <div class="layer" id="layer-risk">
+    <h3>Risk & Velka</h3>
+    <div class="metric">
+      <p>Riskitaso</p>
+      <h1 id="m-risk">–</h1>
+    </div>
+    <div class="metric">
+      <p>Volatiliteetti (profiili)</p>
+      <h1 id="m-vol">–</h1>
+    </div>
+    <div class="metric">
+      <p>Velka & arvioitu poistumisaika</p>
+      <h1 id="m-debtclear">–</h1>
+    </div>
+    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe ← ennuste • Swipe ↑ tavoitteet</p>
+  </div>
+
+  <!-- LAYER 3: GOALS -->
+  <div class="layer" id="layer-goals">
+    <h3>Tavoitteet & Ghost-polku</h3>
+    <div class="metric">
+      <p>Asuntotavoite – aika</p>
+      <h1 id="m-housing">–</h1>
+    </div>
+    <div class="metric">
+      <p>Todennäköisyys saavuttaa tavoite</p>
+      <h1 id="m-prob">–</h1>
+    </div>
+    <div class="metric">
+      <p>Ghost-skenaario ( +10% parempi säästörytmi )</p>
+      <h1 id="m-ghost">–</h1>
+    </div>
+    <p class="hint">Swipe ↓ sulkee kerroksen • Swipe ← ennuste • Swipe → riskit</p>
   </div>
 
   <script src="app.js"></script>
