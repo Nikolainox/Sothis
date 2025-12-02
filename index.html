@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sothis – Future Wealth OS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app" id="app-root">
+    <header class="top-bar">
+      <div class="brand">
+        <span class="logo-dot"></span>
+        <span class="brand-title">Sothis</span>
+      </div>
+      <div class="top-meta">
+        <div class="meta-item">
+          <span class="label">Päätösputki</span>
+          <span class="value" id="universe-step">Päätös #0</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Session aika</span>
+          <span class="value" id="session-time">0:00</span>
+        </div>
+        <div class="badge badge-small" id="focus-hint">
+          Max 3 min – tämän jälkeen ulos appista
+        </div>
+      </div>
+    </header>
+
+    <!-- HUB / SCOREBOARD -->
+    <section class="hub-strip">
+      <div class="hub-item">
+        <span class="hub-label">Säästö-% (arvio)</span>
+        <span class="hub-value" id="hub-savings-rate">–</span>
+      </div>
+      <div class="hub-item">
+        <span class="hub-label">Netto-tilanne</span>
+        <span class="hub-value" id="hub-net">–</span>
+      </div>
+      <div class="hub-item">
+        <span class="hub-label">Velka</span>
+        <span class="hub-value" id="hub-debt">–</span>
+      </div>
+      <div class="hub-item">
+        <span class="hub-label">Velaton noin</span>
+        <span class="hub-value" id="hub-payoff">–</span>
+      </div>
+      <div class="hub-item">
+        <span class="hub-label">Riskitaso</span>
+        <span class="hub-value" id="hub-risk">–</span>
+      </div>
+    </section>
+
+    <!-- Identity / Future Wealth Mode -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Wealth identity</h2>
+        <span class="row-tag">Mille tulevalle versiolle itsestäsi pelaat?</span>
+      </div>
+      <div class="card-strip">
+        <div class="card">
+          <div class="card-title">Profiili</div>
+          <div class="identity-buttons">
+            <button class="identity-btn active" data-identity="architect">
+              Capital Architect
+            </button>
+            <button class="identity-btn" data-identity="leverage">
+              High-Leverage
+            </button>
+            <button class="identity-btn" data-identity="mystic">
+              Wealth Mystic
+            </button>
+          </div>
+          <p class="card-subtext" id="identity-description">
+            Rakennat varallisuutta järjestelmällisesti. Sothis painottaa vakautta ja velan nopeaa hallittua purkua.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Peruskonfiguraatio -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Perusdata</h2>
+        <span class="row-tag">Lempeästi tarkka, ei kirjanpitäjä-fiilistä</span>
+      </div>
+      <div class="card-strip">
+        <div class="card">
+          <div class="card-title">Kuukausitulot</div>
+          <input type="number" id="input-income" class="input-field" placeholder="€ / kk" />
+          <p class="card-subtext">Kaikki tulot yhteensä, verojen jälkeen.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Kiinteät kulut</div>
+          <input type="number" id="input-fixed" class="input-field" placeholder="€ / kk" />
+          <p class="card-subtext">Vuokra, laskut, pakolliset menot.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Alkusäästöt</div>
+          <input type="number" id="input-savings" class="input-field" placeholder="€" />
+          <p class="card-subtext">Paljonko sinulla on säästössä nyt.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Velkaa yhteensä</div>
+          <input type="number" id="input-debt" class="input-field" placeholder="€" />
+          <p class="card-subtext">Luotto, lainat ym. arvio.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Päätöksen syöttö -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Yksi päätös kerrallaan</h2>
+        <span class="row-tag">Haamuosto, säästö, sijoitus, velan maksu</span>
+      </div>
+      <div class="card-strip">
+        <div class="card">
+          <div class="card-title">Summa</div>
+          <input type="number" id="decision-amount" class="input-field" placeholder="€" />
+          <p class="card-subtext">Seuraava liike: paljonko rahaa liikkuu.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Tyyppi</div>
+          <select id="decision-type" class="input-field">
+            <option value="spend">Ostos / kulutus</option>
+            <option value="save">Säästö</option>
+            <option value="invest">Sijoitus</option>
+            <option value="debt">Velan lyhennys</option>
+          </select>
+          <p class="card-subtext">Mihin tämä raha oikeasti menee?</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Tunne (Navarro)</div>
+          <div class="state-buttons">
+            <button class="state-btn" data-emotion="calm">Rauhallinen</button>
+            <button class="state-btn" data-emotion="tense">Kireä</button>
+            <button class="state-btn" data-emotion="bored">Tylsistynyt</button>
+            <button class="state-btn" data-emotion="euphoric">Euforinen</button>
+          </div>
+          <p class="card-subtext" id="emotion-tip">
+            Valitse tunne – appi oppii missä tilassa teet kalleimmat virheet.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Lisää päätös</div>
+          <button id="add-decision" class="primary-btn">Tallenna päätös</button>
+          <p class="card-subtext">
+            Yksi napautus = lisää. Tupla-napautus = lisää ja merkitse “tärkeäksi liikkeeksi”.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trajectory universumit -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Universumit: Real / Ghost / Dark</h2>
+        <span class="row-tag">30 askeleen hologrammi tulevaisuuteen</span>
+      </div>
+      <div class="card-strip">
+        <div class="card card-chart">
+          <canvas id="trajectoryChart" width="360" height="220"></canvas>
+          <div class="chart-legend">
+            <span class="legend-dot legend-real"></span> Real (todennäköinen polku)
+            <span class="legend-dot legend-ghost"></span> Ghost (optimaalinen sinä)
+            <span class="legend-dot legend-dark"></span> Dark (stressi & impulssit)
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Netto-indeksi 12 askeleen päästä</div>
+          <div class="big-number" id="future-index">–</div>
+          <p class="card-subtext">
+            Positiivinen = vahvistuva tulevaisuus. Negatiivinen = universumi vuotaa.
+          </p>
+          <div class="card-title" style="margin-top:8px;">Money Gravity -kompassi</div>
+          <p class="card-subtext" id="gravity-text">
+            Kompassi kertoo vetääkö universumi kohti kasvua, turvaa, kulutusinflaatiota vai uupumusta.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bayes + Monte Carlo -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Bayes & Monte Carlo</h2>
+        <span class="row-tag">Käyttäytymistilastot – ei moralisointia</span>
+      </div>
+      <div class="card-strip">
+        <div class="card">
+          <div class="card-title">Hyvien päätösten todennäköisyys</div>
+          <div class="big-number" id="bayes-prob">–</div>
+          <p class="card-subtext">
+            Arvio siitä, että seuraava liikkeesi on “taloudellisesti terve”.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">12 kk onnistumis-%</div>
+          <div class="big-number" id="mc-success">–</div>
+          <p class="card-subtext">
+            Monte Carlo: kuinka usein 1000 universumista päädyt plussalle.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Identity-kommentti</div>
+          <p id="identity-comment" class="card-subtext">
+            Profiilisi määrittää miten aggressiivisesti mahdollisuuksia painotetaan. Se ei rajoita sinua, vaan selkeyttää suuntaa.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Emotion / Navarro -->
+    <section class="row">
+      <div class="row-header">
+        <h2>Psykologinen fingerprint</h2>
+        <span class="row-tag">Missä tilassa teet kalleimmat virheet?</span>
+      </div>
+      <div class="card-strip">
+        <div class="card">
+          <div class="card-title">Riskitila</div>
+          <p id="behavior-note">
+            Kun merkkaat tunteen jokaiseen päätökseen, näet missä moodissa rahajärjestelmä vuotaa eniten.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Lempeä muistutus</div>
+          <p id="soothing-note">
+            Rahapäätökset eivät kerro arvostasi ihmisenä. Ne kertovat vain järjestelmästä, jota voimme säätää päätös kerrallaan.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
