@@ -1,317 +1,260 @@
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display",
+  font-family: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
-  background: #050510;
-  color: #e5eaff;
+  background: #02030a;
+  color: #dffaff;
 }
 
 body {
-  background: radial-gradient(circle at top, #15162a, #050510 55%);
-  color: #e5eaff;
+  background: radial-gradient(circle at top, #15162a, #02030a 55%);
+  color: #dffaff;
+  overflow: hidden;
 }
 
-/* HOLOGRAM GRID */
+/* GRID BACKGROUND */
 
-#holo-grid {
+#grid {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
   z-index: -1;
-  opacity: 0.2;
+  opacity: 0.18;
 }
 
-/* APP LAYOUT */
+/* VAULT */
 
-#app {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 8px 10px 80px;
-}
-
-/* TOP HUD */
-
-.hud-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 16px;
-  backdrop-filter: blur(14px);
-  background: linear-gradient(90deg, rgba(15, 18, 30, 0.9), rgba(5, 6, 16, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 8px;
-}
-
-.brand {
+#vault-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -56%);
+  width: 320px;
+  height: 320px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  justify-content: center;
+  perspective: 1000px;
 }
 
-.brand .dot {
-  width: 11px;
-  height: 11px;
+#vault-outer-ring,
+#vault-inner-ring {
+  position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #00f5ff, #00b4d8);
-  box-shadow: 0 0 16px rgba(0, 245, 255, 0.9);
+  border: 2px solid rgba(0, 245, 255, 0.5);
+  animation: spin 14s linear infinite;
 }
 
-.brand-name {
-  font-weight: 600;
+#vault-outer-ring {
+  width: 320px;
+  height: 320px;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
 }
 
-.system-info {
+#vault-inner-ring {
+  width: 230px;
+  height: 230px;
+  animation-duration: 9s;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.5) inset;
+}
+
+#vault-core {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 255, 0.9);
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(20, 40, 60, 0.8), #02030a);
+  box-shadow: 0 0 45px rgba(0, 255, 255, 0.5);
+  text-align: center;
+  padding: 6px;
+}
+
+#vault-core h2 {
+  font-size: 14px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+#vault-core p {
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotateZ(0deg);
+  }
+  100% {
+    transform: rotateZ(360deg);
+  }
+}
+
+/* DATA PANEL */
+
+#data-panel {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  max-width: 90vw;
+  padding: 10px 12px 12px;
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  background: rgba(4, 6, 18, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.8);
+  font-size: 13px;
+}
+
+#data-panel h3 {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+#data-panel label {
   font-size: 11px;
   opacity: 0.8;
 }
 
-/* JARVIS PANEL */
-
-.jarvis-box {
-  margin: 12px 2px 14px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 245, 255, 0.35);
-  background: radial-gradient(circle at top, rgba(0, 40, 60, 0.55), rgba(5, 6, 12, 0.95));
-  box-shadow: 0 0 24px rgba(0, 245, 255, 0.15);
-}
-
-.jarvis-box h3 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  opacity: 0.85;
-  margin-bottom: 4px;
-}
-
-.jarvis-box p {
-  font-size: 13px;
-}
-
-/* MAIN AREA */
-
-.main-area {
-  margin-top: 4px;
-}
-
-/* VAULT GRID */
-
-.vault-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.vault-cell {
-  position: relative;
-  padding: 10px 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 245, 255, 0.35);
-  background: radial-gradient(circle at top, rgba(0, 40, 60, 0.55), rgba(5, 6, 12, 0.95));
-  box-shadow: 0 0 20px rgba(0, 245, 255, 0.12);
-  overflow: hidden;
-}
-
-.vault-cell::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 245, 255, 0.18);
-  opacity: 0.4;
-}
-
-.vault-cell h4 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.78;
-  margin-bottom: 4px;
-}
-
-.vault-cell .value {
-  font-size: 20px;
-  font-weight: 600;
-  color: #00f5ff;
-}
-
-/* CONFIG PANEL */
-
-.panel {
-  margin: 2px 2px 10px;
-  padding: 10px 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(145deg, rgba(13, 16, 28, 0.94), rgba(5, 6, 12, 0.97));
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.6);
-  display: none;
-}
-
-.panel.active {
-  display: block;
-}
-
-.panel h3 {
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.field-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.field label {
-  font-size: 11px;
-  opacity: 0.78;
-}
-
-.field input,
-.field select {
+#data-panel input,
+#data-panel select {
   width: 100%;
+  margin: 2px 0 8px;
   padding: 6px 8px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(0, 0, 0, 0.35);
-  color: #f5f5f5;
+  color: #fff;
   font-size: 13px;
 }
 
-.field input:focus,
-.field select:focus {
+#data-panel input:focus,
+#data-panel select:focus {
   outline: none;
   border-color: rgba(0, 245, 255, 0.9);
 }
 
-/* BUTTONS */
-
-.primary-btn {
-  margin-top: 4px;
-  padding: 8px 12px;
+#data-panel button {
+  margin-top: 2px;
+  width: 100%;
+  padding: 8px 10px;
   border-radius: 999px;
   border: none;
-  cursor: pointer;
-  background: linear-gradient(90deg, #00f5ff, #00b4ff);
+  background: linear-gradient(90deg, #00f5ff, #0091ff);
   color: #000;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
 }
 
-.primary-btn:active {
+#data-panel button:active {
   transform: scale(0.97);
 }
 
-/* NAV */
+/* LAYERS */
 
-.bottom-nav {
-  margin: 6px 2px 8px;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.layer {
+  position: fixed;
+  inset: 0;
+  padding-top: 210px;
+  text-align: center;
+  background: radial-gradient(circle at top, rgba(10, 20, 40, 0.96), #02030a);
+  backdrop-filter: blur(18px);
+  display: none;
+  animation: fadeIn 0.25s ease-out;
 }
 
-.nav-btn {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 7px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
-  color: #f5f5f5;
+.layer.active {
+  display: block;
+}
+
+.layer h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+.metric {
+  margin: 8px 0;
+}
+
+.metric p {
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
+  opacity: 0.78;
 }
 
-.nav-btn.active {
-  background: linear-gradient(90deg, #00f5ff, #00b4ff);
-  color: #000;
-  border-color: transparent;
-}
-
-/* PANEL CONTENT */
-
-.info-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.info-row > div {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.big-number {
-  font-size: 24px;
+.metric h1 {
+  font-size: 26px;
   font-weight: 600;
-  margin-bottom: 4px;
   color: #00f5ff;
+  margin-top: 2px;
 }
 
-.small {
-  font-size: 12px;
-  opacity: 0.8;
+.hint {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 12px;
 }
 
-.result-block {
-  margin-top: 10px;
-  font-size: 13px;
+/* HISTORY SPARKLINE */
+
+#history-sparkline {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1px;
+  height: 40px;
+  margin: 4px auto 0;
 }
 
-.result-block h4 {
-  font-size: 13px;
-  margin-bottom: 4px;
+#history-sparkline span {
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #00f5ff, #0066ff);
+  opacity: 0.75;
+}
+
+/* ANIMATIONS */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* RESPONSIVE */
 
-@media (max-width: 720px) {
-  #app {
-    padding: 8px 8px 80px;
+@media (max-width: 640px) {
+  #vault-container {
+    transform: translate(-50%, -60%);
+    width: 260px;
+    height: 260px;
   }
-
-  .hud-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+  #vault-outer-ring {
+    width: 260px;
+    height: 260px;
   }
-
-  .system-info {
-    font-size: 10px;
+  #vault-inner-ring {
+    width: 190px;
+    height: 190px;
   }
-
-  .vault-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #vault-core {
+    width: 110px;
+    height: 110px;
   }
-
-  .info-row {
-    flex-direction: column;
+  .layer {
+    padding-top: 190px;
   }
 }
