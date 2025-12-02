@@ -2,25 +2,25 @@
 // Perustila & utilit
 // ----------------------------
 
-const STORAGE_KEY = "sothis_state_v2";
+const STORAGE_KEY = "sothis_v3_vault_state";
 
 let state = {
   config: {
     monthlyIncome: 0,
     fixedCosts: 0,
     startSavings: 0,
-    debtAmount: 0,
-    identity: "architect" // architect | leverage | mystic
+    debtAmount: 0
   },
-  decisions: [] // { id, amount, kind, emotion }
+  decisions: [], // { id, amount, kind, emotion }
+  currentEmotion: "calm", // calm | tense | bored | euphoric
+  wealthMode: "balanced" // balanced | debt | invest
 };
 
 let sessionStart = Date.now();
 let lastAddTap = 0;
 let touchStartX = null;
 let touchStartY = null;
-let selectedEmotion = null;
-let decisionIdCounter = 1;
+let cashTouchStartY = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadState();
@@ -46,10 +46,11 @@ function loadState() {
       monthlyIncome: 0,
       fixedCosts: 0,
       startSavings: 0,
-      debtAmount: 0,
-      identity: "architect"
+      debtAmount: 0
     };
   }
+  if (!state.currentEmotion) state.currentEmotion = "calm";
+  if (!state.wealthMode) state.wealthMode = "balanced";
 }
 
 function saveState() {
@@ -61,9 +62,7 @@ function saveState() {
 // ----------------------------
 
 function initUI() {
-  const { monthlyIncome, fixedCosts, startSavings, debtAmount, identity } =
-    state.config;
-
+  const { monthlyIncome, fixedCosts, startSavings, debtAmount } = state.config;
   const incomeInput = document.getElementById("input-income");
   const fixedInput = document.getElementById("input-fixed");
   const savingsInput = document.getElementById("input-savings");
@@ -77,12 +76,8 @@ function initUI() {
   const universeEl = document.getElementById("universe-step");
   if (universeEl) universeEl.textContent = `Päätös #${state.decisions.length}`;
 
-  // identity UI
-  document.querySelectorAll(".identity-btn").forEach((btn) => {
-    const id = btn.getAttribute("data-identity");
-    btn.classList.toggle("active", id === identity);
-  });
-  updateIdentityText(identity);
+  updateEmotionUI();
+  updateWealthModeLabel();
 }
 
 function startSessionTimer() {
@@ -93,14 +88,6 @@ function startSessionTimer() {
     const s = String(sec % 60).padStart(2, "0");
     const el = document.getElementById("session-time");
     if (el) el.textContent = `${m}:${s}`;
-
-    const hint = document.getElementById("focus-hint");
-    if (hint && sec > 180) {
-      hint.textContent = "Riittää. Rahaa rakennetaan nyt elämällä, ei ruudulla.";
-      hint.style.borderColor = "rgba(255,118,117,0.8)";
-      hint.style.background =
-        "linear-gradient(90deg, rgba(255,118,117,0.15), rgba(255,255,255,0.02))";
-    }
   }, 1000);
 }
 
@@ -143,74 +130,115 @@ function attachHandlers() {
     });
   }
 
-  // Identity selection
-  document.querySelectorAll(".identity-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-identity");
-      state.config.identity = id;
-      saveState();
-      document.querySelectorAll(".identity-btn").forEach((b) => {
-        b.classList.toggle("active", b === btn);
-      });
-      updateIdentityText(id);
-      renderAll();
-    });
-  });
+  // Swipe: koko app juoksee tämän varassa
+  attachPillarGestures();
 
-  // Emotion selection
-  document.querySelectorAll(".state-btn[data-emotion]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const emotion = btn.getAttribute("data-emotion");
-      setSelectedEmotion(emotion);
-    });
-  });
-
-  // Add decision (single & double tap)
-  const addBtn = document.getElementById("add-decision");
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      const now = Date.now();
-      const double = now - lastAddTap < 350;
-      lastAddTap = now;
-      addDecision(double);
+  const analyzeBtn = document.getElementById("analyze-btn");
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener("click", () => {
+      runPurchaseAnalysis();
     });
   }
+}
 
-  // Swipe “mindset”-viestit
-  const appRoot = document.getElementById("app-root");
-  if (appRoot) {
-    appRoot.addEventListener(
+function attachPillarGestures() {
+  const pillarCash = document.getElementById("pillar-cash");
+  const pillarWealth = document.getElementById("pillar-wealth");
+  const pillarEmotion = document.getElementById("pillar-emotion");
+
+  // Cash pillar: up/down ostospaneeli
+  if (pillarCash) {
+    pillarCash.addEventListener(
       "touchstart",
       (e) => {
-        if (!e.touches || e.touches.length === 0) return;
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+        const t = e.touches[0];
+        cashTouchStartY = t.clientY;
       },
       { passive: true }
     );
 
-    appRoot.addEventListener(
+    pillarCash.addEventListener(
       "touchend",
       (e) => {
-        if (touchStartX === null || touchStartY === null) return;
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-        const dx = touchEndX - touchStartX;
-        const dy = touchEndY - touchStartY;
-
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-          const note = document.getElementById("soothing-note");
-          if (!note) return;
-
-          if (dx > 0) {
-            note.textContent =
-              "Taaksepäin katsominen on analyysiä, ei häpeää. Tärkeintä on mihin seuraava liike osoittaa.";
+        if (cashTouchStartY == null) return;
+        const endY = e.changedTouches[0].clientY;
+        const dy = endY - cashTouchStartY;
+        if (Math.abs(dy) > 40) {
+          if (dy < 0) {
+            setPurchasePanelOpen(true);
           } else {
-            note.textContent =
-              "Eteenpäin on aina uusi universumi. Yksi hieman parempi päätös riittää kääntämään suunnan.";
+            setPurchasePanelOpen(false);
           }
         }
+        cashTouchStartY = null;
+      },
+      { passive: true }
+    );
+  }
 
+  // Wealth pillar: left/right vaihtaa moodia
+  if (pillarWealth) {
+    pillarWealth.addEventListener(
+      "touchstart",
+      (e) => {
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+      },
+      { passive: true }
+    );
+
+    pillarWealth.addEventListener(
+      "touchend",
+      (e) => {
+        if (touchStartX == null || touchStartY == null) return;
+        const x = e.changedTouches[0].clientX;
+        const y = e.changedTouches[0].clientY;
+        const dx = x - touchStartX;
+        const dy = y - touchStartY;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+          if (dx > 0) {
+            // right
+            cycleWealthMode(1);
+          } else {
+            // left
+            cycleWealthMode(-1);
+          }
+        }
+        touchStartX = null;
+        touchStartY = null;
+      },
+      { passive: true }
+    );
+  }
+
+  // Emotion pillar: up/down vaihtaa moodia
+  if (pillarEmotion) {
+    pillarEmotion.addEventListener(
+      "touchstart",
+      (e) => {
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+      },
+      { passive: true }
+    );
+
+    pillarEmotion.addEventListener(
+      "touchend",
+      (e) => {
+        if (touchStartX == null || touchStartY == null) return;
+        const x = e.changedTouches[0].clientX;
+        const y = e.changedTouches[0].clientY;
+        const dx = x - touchStartX;
+        const dy = y - touchStartY;
+        if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
+          if (dy < 0) {
+            cycleEmotion(1);
+          } else {
+            cycleEmotion(-1);
+          }
+        }
         touchStartX = null;
         touchStartY = null;
       },
@@ -220,109 +248,77 @@ function attachHandlers() {
 }
 
 // ----------------------------
-// Identity-kuvaukset
+// Emotion & wealth mode
 // ----------------------------
 
-function updateIdentityText(id) {
-  const desc = document.getElementById("identity-description");
-  const comment = document.getElementById("identity-comment");
-  if (!desc || !comment) return;
+const EMOTIONS = ["calm", "tense", "bored", "euphoric"];
 
-  if (id === "architect") {
-    desc.textContent =
-      "Rakennat varallisuutta kuin insinööri: vakaus ensin, sitten kasvu. Sothis suosii velan purkua ja tasaista nousua.";
-    comment.textContent =
-      "Capital Architect -moodissa ghost-universumi painottaa turvaa ja ennustettavuutta. Isoja riskejä vain jos järjestelmä kestää ne.";
-  } else if (id === "leverage") {
-    desc.textContent =
-      "Ajattelet vipua: aika, raha ja energia halutaan moninkertaistaa. Sothis painottaa sijoituksia ja mahdollisuuksien tunnistamista.";
-    comment.textContent =
-      "High-Leverage-tilassa ghost-universumi nostaa sijoitusten painoa ja sietää vähän suurempaa vaihtelua – mutta varo dark-universumia.";
-  } else if (id === "mystic") {
-    desc.textContent =
-      "Sinulle raha on energiaa: haluat, että varallisuus tukee merkitystä ja tilaa ajatella. Sothis painottaa stressittömyyttä ja joustoa.";
-    comment.textContent =
-      "Wealth Mystic -tilassa painotamme hermoston rauhaa. Rahan liike saa olla pienempää, kunhan suunta tuntuu oikealta.";
-  }
-}
-
-// ----------------------------
-// Emotion valinta
-// ----------------------------
-
-function setSelectedEmotion(emotion) {
-  selectedEmotion = emotion;
-  document.querySelectorAll(".state-btn[data-emotion]").forEach((btn) => {
-    btn.classList.toggle(
-      "active",
-      btn.getAttribute("data-emotion") === emotion
-    );
-  });
-
-  const tip = document.getElementById("emotion-tip");
-  if (!tip) return;
-
-  if (emotion === "calm") {
-    tip.textContent =
-      "Rauhallinen tila on yleensä paras isoille rahan liikkeille. Hyödynnetään se.";
-  } else if (emotion === "tense") {
-    tip.textContent =
-      "Kireänä teet helpommin puolustusostoja ja paniikkimaksuja. Hengitä ja anna kehon rauhoittua ennen vahvistusta.";
-  } else if (emotion === "bored") {
-    tip.textContent =
-      "Tylsyys on impulssiostojen magneetti. Kysy itseltäsi: tuoko tämä ostos oikeaa iloa vai vain hetken helpotusta?";
-  } else if (emotion === "euphoric") {
-    tip.textContent =
-      "Euforia on ihana tunne, mutta kallis päätösten tausta. Pieni viive ennen klikkausta voi säästää paljon.";
-  } else {
-    tip.textContent =
-      "Valitse tunne – appi oppii missä tilassa teet kalleimmat virheet.";
-  }
-}
-
-// ----------------------------
-// Päätöksen lisäys
-// ----------------------------
-
-function addDecision(doubleTapBoost) {
-  const amountInput = document.getElementById("decision-amount");
-  const typeSelect = document.getElementById("decision-type");
-  if (!amountInput || !typeSelect) return;
-
-  const amount = parseFloat(amountInput.value);
-  const kind = typeSelect.value;
-
-  if (!amount || amount <= 0) {
-    alert("Anna summa ensin.");
-    return;
-  }
-
-  const decision = {
-    id: decisionIdCounter++,
-    amount,
-    kind,
-    emotion: selectedEmotion || "unknown"
-  };
-
-  state.decisions.push(decision);
+function cycleEmotion(direction) {
+  const idx = EMOTIONS.indexOf(state.currentEmotion);
+  const next = (idx + direction + EMOTIONS.length) % EMOTIONS.length;
+  state.currentEmotion = EMOTIONS[next];
   saveState();
+  updateEmotionUI();
+}
 
-  amountInput.value = "";
+function updateEmotionUI() {
+  const label = document.getElementById("emotion-label");
+  const pill = document.getElementById("purchase-emotion-pill");
+  const bar = document.getElementById("emotion-bar");
+  let text = "Rauhallinen";
+  let gradient =
+    "radial-gradient(circle at 30% 0, #00cec9, #2e86de, #05060a)";
 
-  const universeEl = document.getElementById("universe-step");
-  if (universeEl) {
-    universeEl.textContent = `Päätös #${state.decisions.length}`;
+  if (state.currentEmotion === "tense") {
+    text = "Kireä";
+    gradient =
+      "radial-gradient(circle at 30% 0, #d63031, #2d3436, #05060a)";
+  } else if (state.currentEmotion === "bored") {
+    text = "Tylsistynyt";
+    gradient =
+      "radial-gradient(circle at 30% 0, #636e72, #2d3436, #05060a)";
+  } else if (state.currentEmotion === "euphoric") {
+    text = "Euforinen";
+    gradient =
+      "radial-gradient(circle at 30% 0, #fdcb6e, #e17055, #05060a)";
   }
 
-  if (doubleTapBoost) {
-    const note = document.getElementById("soothing-note");
-    if (note) {
-      note.textContent =
-        "Tupla-napautus rekisteröity. Tämä päätös on nyt tarinallinen ankkuri, ei vain numero listassa.";
-    }
-  }
+  if (label) label.textContent = text;
+  if (pill) pill.textContent = `Tunne: ${text.toLowerCase()}`;
+  if (bar) bar.style.background = gradient;
+}
 
+function cycleWealthMode(direction) {
+  const modes = ["balanced", "debt", "invest"];
+  const idx = modes.indexOf(state.wealthMode);
+  const next = (idx + direction + modes.length) % modes.length;
+  state.wealthMode = modes[next];
+  saveState();
+  updateWealthModeLabel();
   renderAll();
+}
+
+function updateWealthModeLabel() {
+  const el = document.getElementById("wealth-mode-label");
+  if (!el) return;
+  if (state.wealthMode === "balanced") {
+    el.textContent = "Wealth / Debt";
+  } else if (state.wealthMode === "debt") {
+    el.textContent = "Velka-fokus";
+  } else {
+    el.textContent = "Sijoitus-fokus";
+  }
+}
+
+// ----------------------------
+// Haamuostos-paneeli
+// ----------------------------
+
+function setPurchasePanelOpen(open) {
+  const panel = document.getElementById("purchase-panel");
+  if (!panel) return;
+  if (open) panel.classList.add("open");
+  else panel.classList.remove("open");
 }
 
 // ----------------------------
@@ -336,9 +332,8 @@ function trackEmotionStat(map, emotion, isBad) {
   if (isBad) map[emotion].bad++;
 }
 
-function computeAggregates() {
-  const { monthlyIncome, fixedCosts, startSavings, debtAmount, identity } =
-    state.config;
+function computeAggregatesFrom(decisions) {
+  const { monthlyIncome, fixedCosts, startSavings, debtAmount } = state.config;
 
   let totalSpent = 0;
   let totalSaved = 0;
@@ -352,7 +347,7 @@ function computeAggregates() {
 
   const emotionStats = {};
 
-  state.decisions.forEach((d) => {
+  decisions.forEach((d) => {
     if (d.kind === "spend") {
       totalSpent += d.amount;
       badCount++;
@@ -366,11 +361,7 @@ function computeAggregates() {
     } else if (d.kind === "invest") {
       totalInvested += d.amount;
       goodCount++;
-      // Identity vaikuttaa sijoitusten “voimakkuuteen”
-      let factor = 1.1;
-      if (identity === "leverage") factor = 1.3;
-      if (identity === "mystic") factor = 1.05;
-      sumGoodGain += d.amount * factor;
+      sumGoodGain += d.amount * 1.15;
       trackEmotionStat(emotionStats, d.emotion, false);
     } else if (d.kind === "debt") {
       totalDebtPaid += d.amount;
@@ -401,29 +392,11 @@ function computeAggregates() {
     bayes = { mean, alpha, beta };
   }
 
-  // Keskimääräiset vaikutukset – säädetään identiteetin mukaan
-  let avgGoodGain;
-  let avgBadLoss;
-
-  if (goodCount > 0) {
-    avgGoodGain = sumGoodGain / goodCount;
-  } else {
-    avgGoodGain = monthlySurplus > 0 ? monthlySurplus * 0.3 : 50;
-  }
-
-  if (badCount > 0) {
-    avgBadLoss = sumBadLoss / badCount;
-  } else {
-    avgBadLoss = monthlySurplus > 0 ? monthlySurplus * 0.2 : 30;
-  }
-
-  if (identity === "leverage") {
-    avgGoodGain *= 1.15;
-    avgBadLoss *= 1.1;
-  } else if (identity === "mystic") {
-    avgGoodGain *= 0.9;
-    avgBadLoss *= 0.8;
-  }
+  // Keskimääräiset vaikutukset
+  let avgGoodGain =
+    goodCount > 0 ? sumGoodGain / goodCount : monthlySurplus > 0 ? monthlySurplus * 0.3 : 50;
+  let avgBadLoss =
+    badCount > 0 ? sumBadLoss / badCount : monthlySurplus > 0 ? monthlySurplus * 0.2 : 30;
 
   return {
     totalSpent,
@@ -444,13 +417,14 @@ function computeAggregates() {
   };
 }
 
-// ----------------------------
-// Monte Carlo & trajectories
-// ----------------------------
+function computeAggregates() {
+  return computeAggregatesFrom(state.decisions);
+}
 
-function runMonteCarlo(agg, steps = 12, trials = 800) {
+// Monte Carlo & Money Gravity
+
+function runMonteCarlo(agg, steps = 12, trials = 600) {
   if (!agg.bayes.mean) return null;
-
   const pGood = agg.bayes.mean;
   const goodGain = agg.avgGoodGain;
   const badLoss = agg.avgBadLoss;
@@ -471,62 +445,29 @@ function runMonteCarlo(agg, steps = 12, trials = 800) {
   return successCount / trials;
 }
 
-function generateTrajectories(agg, steps = 30) {
-  const pGood = agg.bayes.mean || 0.6;
-  const goodGain = agg.avgGoodGain;
-  const badLoss = agg.avgBadLoss;
-
-  const real = [];
-  const ghost = [];
-  const dark = [];
-
-  let r = 0;
-  let g = 0;
-  let d = 0;
-
-  for (let i = 0; i < steps; i++) {
-    const expectedChange = pGood * goodGain - (1 - pGood) * badLoss;
-    r += expectedChange;
-    g += goodGain;
-    d -= badLoss;
-
-    real.push(r);
-    ghost.push(g);
-    dark.push(d);
-  }
-
-  return { real, ghost, dark };
-}
-
-// Money Gravity -suunta
 function computeMoneyGravity(agg) {
-  // Growth: miten paljon real nousee
-  // Safety: velan pieneneminen ja netto plussalla
-  // Lifestyle inflation: kulutus / surplus
-  // Burnout: liian aggressiivinen velan maksu vs surplus
-
   const growth =
     agg.avgGoodGain - agg.avgBadLoss / 2 + (agg.netPosition > 0 ? 20 : 0);
   const safety =
     (agg.netSavings > 0 ? 20 : 0) +
     (agg.currentDebt === 0 ? 30 : -10) +
     (agg.monthlySurplus > 0 ? 15 : -15);
-
   const lifestyleInflation = agg.totalSpent - agg.totalSaved;
-  const burnout = agg.totalDebtPaid > agg.monthlySurplus * 2 ? 30 : 0;
+  const burnout =
+    agg.totalDebtPaid > agg.monthlySurplus * 2 && agg.monthlySurplus > 0 ? 30 : 0;
 
-  // Suunnat
   let main = "tasapaino";
   let explanation =
-    "Universumi on neutraali – nyt on täydellinen hetki säätää suuntaa hieman parempaan.";
+    "Universumi on neutraali – tästä on helppo kääntää suunta hieman parempaan.";
 
   if (growth > safety && growth > lifestyleInflation && growth > burnout) {
     main = "varallisuuden kasvu (North)";
-    explanation = "Liikkeesi tukevat varallisuuden rakentumista. Suojaa tämä rytmi.";
+    explanation =
+      "Liikkeesi tukevat varallisuuden rakentumista. Suojaa tämä rytmi äläkä hajota sitä turhaan.";
   } else if (safety > growth && safety > lifestyleInflation && safety > burnout) {
     main = "turva & likviditeetti (East)";
     explanation =
-      "Painotat turvaa. Hyvä. Varmista vain, ettet pidä kaikkea liian passiivisena liian pitkään.";
+      "Painotat turvaa. Hyvä. Varmista vain, ettet jää liian pitkäksi aikaa paikoillesi.";
   } else if (
     lifestyleInflation > growth &&
     lifestyleInflation > safety &&
@@ -534,14 +475,155 @@ function computeMoneyGravity(agg) {
   ) {
     main = "elintaso-inflaatio (South)";
     explanation =
-      "Kulutus kasvaa suhteessa säästöön. Tämä ei ole häpeä, mutta se on suunta, joka syö tulevaa vapautta.";
+      "Kulutus kasvaa suhteessa säästöön. Tämä ei ole häpeä, mutta se syö tulevaa vapautta.";
   } else if (burnout > 0) {
     main = "ylikireä maksutahti (West)";
     explanation =
-      "Lyhennät aggressiivisesti. Se voi olla hyvä, mutta jos hermosto väsyy, dark-universumi aktivoituu.";
+      "Lyhennät aggressiivisesti. Velka sulaa, mutta jos hermosto palaa loppuun, dark-universumi voittaa.";
   }
 
   return { main, explanation };
+}
+
+// ----------------------------
+// Ostosennuste / haamuostos
+// ----------------------------
+
+function runPurchaseAnalysis() {
+  const amountInput = document.getElementById("purchase-amount");
+  const kindSelect = document.getElementById("purchase-kind");
+  const summaryEl = document.getElementById("purchase-summary");
+  const cfoEl = document.getElementById("purchase-cfo");
+
+  if (!amountInput || !kindSelect || !summaryEl || !cfoEl) return;
+
+  const amount = parseFloat(amountInput.value);
+  const kind = kindSelect.value;
+
+  if (!amount || amount <= 0) {
+    summaryEl.textContent = "Anna summa, jotta voin simuloida universumit.";
+    cfoEl.textContent = "";
+    return;
+  }
+
+  const baseAgg = computeAggregates();
+
+  // jos ei ole vielä dataa, tee varovainen oletus
+  if (!baseAgg.bayes.mean) {
+    summaryEl.textContent =
+      "Tarvitsen muutaman oikean päätöksen, jotta tunnen järjestelmäsi. Voit silti käyttää tätä suuntaa-antavana.";
+  }
+
+  // Haamuostos ekstra-päätös
+  const extraDecision = {
+    id: -1,
+    amount,
+    kind: kind === "debt" ? "debt" : kind === "invest" ? "invest" : "spend",
+    emotion: state.currentEmotion
+  };
+  const withPurchaseAgg = computeAggregatesFrom(
+    state.decisions.concat(extraDecision)
+  );
+
+  // Ghost-vaihtoehto: käytä sama summa velkaan tai sijoitukseen
+  let ghostDecision;
+  if (kind === "debt") {
+    ghostDecision = extraDecision; // jo velan maksu
+  } else if (kind === "invest" || kind === "tool" || kind === "experience") {
+    ghostDecision = {
+      id: -2,
+      amount,
+      kind: "invest",
+      emotion: state.currentEmotion
+    };
+  } else {
+    ghostDecision = {
+      id: -2,
+      amount,
+      kind: "save",
+      emotion: state.currentEmotion
+    };
+  }
+  const ghostAgg = computeAggregatesFrom(
+    state.decisions.concat(ghostDecision)
+  );
+
+  const baseMC = runMonteCarlo(baseAgg) ?? null;
+  const withMC = runMonteCarlo(withPurchaseAgg) ?? null;
+  const ghostMC = runMonteCarlo(ghostAgg) ?? null;
+
+  const deltaNet = withPurchaseAgg.netPosition - baseAgg.netPosition;
+  const ghostDeltaNet = ghostAgg.netPosition - baseAgg.netPosition;
+
+  let emoRiskText = "";
+  const aggStats = baseAgg.emotionStats;
+  const emoStats = aggStats[state.currentEmotion];
+  if (emoStats && emoStats.total > 0) {
+    const rate = emoStats.bad / emoStats.total;
+    if (rate > 0.5) {
+      emoRiskText = `Historiadata: ${emotionLabel(
+        state.currentEmotion
+      )}-tilassa noin ${(rate * 100).toFixed(
+        0
+      )}% päätöksistä on mennyt sinua vastaan. `;
+    }
+  } else if (state.currentEmotion !== "calm") {
+    emoRiskText =
+      "Tässä tunnetilassa sinulla ei vielä ole dataa, mutta keho on todennäköisesti herkempi impulssiostoksille. ";
+  }
+
+  // Summary
+  const baseNet = formatEuro(baseAgg.netPosition);
+  const withNet = formatEuro(withPurchaseAgg.netPosition);
+  const ghostNet = formatEuro(ghostAgg.netPosition);
+
+  summaryEl.textContent =
+    `Nykyinen nettoasema: ${baseNet}. ` +
+    `Jos teet tämän ostoksen nyt, ennustettu nettoasema siirtyy tasolle ${withNet} (${deltaNet >= 0 ? "+" : ""}${deltaNet.toFixed(
+      0
+    )} €). ` +
+    `Jos sama summa menisi ghost-vaihtoehtoon (säästö/velan lyhennys/sijoitus), netto olisi ${ghostNet} (${ghostDeltaNet >= 0 ? "+" : ""}${ghostDeltaNet.toFixed(
+      0
+    )} €).`;
+
+  // CFO-kommentti
+  let cfoText = emoRiskText;
+
+  if (kind === "debt") {
+    cfoText +=
+      "Tämä liike vahvistaa järjestelmääsi – velan lyhennys on yleensä ghost-ystävällinen päätös.";
+  } else if (kind === "invest" || kind === "tool" || kind === "experience") {
+    if (deltaNet < 0 && ghostDeltaNet > 0) {
+      cfoText +=
+        "Taloudellisesti tämä on investointi, mutta ghost-universumi olisi vahvempi jos käyttäisit osan summasta velan lyhennykseen tai säästöön.";
+    } else {
+      cfoText +=
+        "Tämä näyttää investoinnilta, jonka järjestelmäsi todennäköisesti kestää – tärkeämpää on, tukeeko se identiteettiäsi.";
+    }
+  } else {
+    if (deltaNet < 0 && Math.abs(deltaNet) > amount * 0.8) {
+      cfoText +=
+        "Tämä ostos on selkeästi järjestelmän vastainen: se siirtää sinua financieelisesti taaksepäin enemmän kuin pelkkä hinta antaisi ymmärtää.";
+    } else if (deltaNet < 0) {
+      cfoText +=
+        "Voit tehdä tämän, mutta se on trade-off: maksat tulevaisuuden liikkumatilalla. Sovi itsesi kanssa yksi vastaliike (pieni säästö) ennen kuin ostat.";
+    } else {
+      cfoText +=
+        "Tämä ostos ei näytä kaatavan järjestelmää. Jos tunne pysyy rauhallisena vielä 10 minuutin päästä, voit tehdä päätöksen luottavaisesti.";
+    }
+  }
+
+  if (baseMC != null && withMC != null && ghostMC != null) {
+    cfoText += `\n\nMonte Carlo -ennuste: nykytila ~${(baseMC * 100).toFixed(
+      0
+    )}% mahdollisuus olla plussalla 12 kk päästä, ostoksen jälkeen ~${(
+      withMC * 100
+    ).toFixed(0)} %, ghost-vaihtoehdolla ~${(ghostMC * 100).toFixed(
+      0
+    )} %.`;
+  }
+
+  cfoEl.textContent = cfoText;
 }
 
 // ----------------------------
@@ -550,32 +632,64 @@ function computeMoneyGravity(agg) {
 
 function renderAll() {
   const agg = computeAggregates();
+  renderCashPillar(agg);
+  renderWealthPillar(agg);
   renderHub(agg);
-  renderBayesSection(agg);
-  renderBehaviorSection(agg);
-  renderTrajectories(agg);
+  renderBayesAndGravity(agg);
+  renderBehavior(agg);
 }
 
-function renderHub(agg) {
-  const rateEl = document.getElementById("hub-savings-rate");
-  const netEl = document.getElementById("hub-net");
-  const debtEl = document.getElementById("hub-debt");
-  const payoffEl = document.getElementById("hub-payoff");
-  const riskEl = document.getElementById("hub-risk");
+function renderCashPillar(agg) {
+  const income = state.config.monthlyIncome || 0;
+  const fixed = state.config.fixedCosts || 0;
+  const surplus = income - fixed;
 
-  const { monthlyIncome, fixedCosts } = state.config;
-  const income = monthlyIncome || 0;
+  const posEl = document.getElementById("cash-pos");
+  const fixedEl = document.getElementById("cash-fixed");
+  const negEl = document.getElementById("cash-neg");
+  const surplusEl = document.getElementById("cash-surplus");
 
-  let savingsRateText = "–";
-  if (income > 0) {
-    const used = fixedCosts + agg.totalSpent;
-    const rate = Math.max(0, 1 - used / income);
-    savingsRateText = (rate * 100).toFixed(0) + " %";
+  if (surplusEl) {
+    surplusEl.textContent =
+      (surplus >= 0 ? "+ " : "- ") + Math.abs(surplus).toFixed(0) + " €";
   }
 
-  if (rateEl) rateEl.textContent = savingsRateText;
+  if (!posEl || !fixedEl || !negEl) return;
+
+  let posHeight = 0;
+  let fixedHeight = 0;
+  let negHeight = 0;
+
+  if (income > 0) {
+    const fixedRatio = Math.min(1, fixed / income);
+    const spendRatio = Math.min(
+      1,
+      agg.totalSpent / Math.max(1, income - fixed)
+    );
+
+    fixedHeight = fixedRatio * 100;
+    if (surplus >= 0) {
+      posHeight = (1 - fixedRatio) * 100;
+      negHeight = 0;
+    } else {
+      posHeight = 0;
+      negHeight = Math.min(100 - fixedHeight, spendRatio * 100);
+    }
+  }
+
+  posEl.style.height = posHeight + "%";
+  fixedEl.style.height = fixedHeight + "%";
+  negEl.style.height = negHeight + "%";
+}
+
+function renderWealthPillar(agg) {
+  const realEl = document.getElementById("wealth-real");
+  const ghostEl = document.getElementById("wealth-ghost");
+  const darkEl = document.getElementById("wealth-dark");
+  const netEl = document.getElementById("hub-net");
+  const payoffEl = document.getElementById("hub-payoff");
+
   if (netEl) netEl.textContent = formatEuro(agg.netPosition);
-  if (debtEl) debtEl.textContent = formatEuro(agg.currentDebt);
 
   if (payoffEl) {
     if (agg.payoffMonths == null) {
@@ -585,6 +699,45 @@ function renderHub(agg) {
       payoffEl.textContent = months < 1 ? "< 1 kk" : months.toFixed(1) + " kk";
     }
   }
+
+  if (!realEl || !ghostEl || !darkEl) return;
+
+  const base = Math.max(
+    Math.abs(agg.netPosition),
+    Math.abs(agg.currentDebt),
+    1
+  );
+
+  let realH = Math.min(100, (agg.netPosition / base) * 50 + 50);
+  let ghostH = Math.min(100, (agg.netSavings / base) * 50 + 50);
+  let darkH = Math.min(100, (-agg.currentDebt / base) * 50 + 50);
+
+  if (state.wealthMode === "debt") {
+    darkH = Math.min(100, darkH + 15);
+  } else if (state.wealthMode === "invest") {
+    ghostH = Math.min(100, ghostH + 15);
+  }
+
+  realEl.style.height = Math.max(5, realH) + "%";
+  ghostEl.style.height = Math.max(5, ghostH) + "%";
+  darkEl.style.height = Math.max(5, darkH) + "%";
+}
+
+function renderHub(agg) {
+  const rateEl = document.getElementById("hub-savings-rate");
+  const debtEl = document.getElementById("hub-debt");
+  const riskEl = document.getElementById("hub-risk");
+
+  const income = state.config.monthlyIncome || 0;
+  let savingsRateText = "–";
+  if (income > 0) {
+    const used = state.config.fixedCosts + agg.totalSpent;
+    const rate = Math.max(0, 1 - used / income);
+    savingsRateText = (rate * 100).toFixed(0) + " %";
+  }
+
+  if (rateEl) rateEl.textContent = savingsRateText;
+  if (debtEl) debtEl.textContent = formatEuro(agg.currentDebt);
 
   if (riskEl) {
     let label = "NO DATA";
@@ -597,27 +750,31 @@ function renderHub(agg) {
   }
 }
 
-function renderBayesSection(agg) {
+function renderBayesAndGravity(agg) {
   const bayesEl = document.getElementById("bayes-prob");
   const mcEl = document.getElementById("mc-success");
+  const gravityEl = document.getElementById("gravity-text");
 
   if (!agg.bayes.mean) {
     if (bayesEl) bayesEl.textContent = "–";
     if (mcEl) mcEl.textContent = "–";
-    const commentEl = document.getElementById("identity-comment");
-    if (commentEl)
-      commentEl.textContent =
-        "Anna minulle 5–10 päätöstä eri tunteissa. Sen jälkeen alan näyttämään, miltä sinun ghost-universumisi oikeasti näyttää.";
+    if (gravityEl)
+      gravityEl.textContent =
+        "Tarvitsen muutaman päätöksen, jotta näen mihin suuntaan rahauniversumisi vetää.";
     return;
   }
 
   if (bayesEl) bayesEl.textContent = (agg.bayes.mean * 100).toFixed(1) + " %";
-
   const mc = runMonteCarlo(agg);
   if (mcEl && mc != null) mcEl.textContent = (mc * 100).toFixed(0) + " %";
+
+  const grav = computeMoneyGravity(agg);
+  if (gravityEl) {
+    gravityEl.textContent = `Tällä hetkellä rahajärjestelmäsi painovoima suuntautuu kohti: ${grav.main}. ${grav.explanation}`;
+  }
 }
 
-function renderBehaviorSection(agg) {
+function renderBehavior(agg) {
   const behaviorEl = document.getElementById("behavior-note");
   const soothingEl = document.getElementById("soothing-note");
   const stats = agg.emotionStats;
@@ -626,10 +783,10 @@ function renderBehaviorSection(agg) {
   if (!entries.length) {
     if (behaviorEl)
       behaviorEl.textContent =
-        "Kun alat merkata tunteen jokaiseen päätökseen, näet missä moodissa vuoto on suurinta – ja voimme rakentaa suoraan sitä vastaan.";
+        "Kun alat merkata tunteen jokaiseen päätökseen, näet missä moodissa vuoto on suurinta ja voidaan rakentaa suoraan sitä vastaan.";
     if (soothingEl)
       soothingEl.textContent =
-        "Tämä data ei ole tuomio, vaan kartta. Jo 51 % paremmat päätökset riittävät kääntämään suunnan.";
+        "Tämä kartta ei ole tuomio vaan työkalu. Jopa 51 % paremmat päätökset riittävät kääntämään suunnan.";
     return;
   }
 
@@ -639,97 +796,19 @@ function renderBehaviorSection(agg) {
   });
 
   rates.sort((a, b) => b.rate - a.rate);
-
   const worst = rates[0];
 
-  const niceName = (e) => {
-    if (e === "calm") return "rauhallinen";
-    if (e === "tense") return "kireä";
-    if (e === "bored") return "tylsistynyt";
-    if (e === "euphoric") return "euforinen";
-    return e;
-  };
-
   if (behaviorEl) {
-    behaviorEl.textContent = `Historiasi mukaan kalleimmat virheet tapahtuvat, kun olet ${niceName(
+    behaviorEl.textContent = `Historiasi mukaan kalleimmat virheet tapahtuvat, kun olet ${emotionLabel(
       worst.emotion
-    )} (noin ${(worst.rate * 100).toFixed(0)} % päätöksistä tässä tilassa on sinua vastaan).`;
+    )}-tilassa (noin ${(worst.rate * 100).toFixed(
+      0
+    )}% päätöksistä tässä moodissa valuu sinua vastaan).`;
   }
 
   if (soothingEl) {
     soothingEl.textContent =
-      "Tunne ei ole vihollinen. Se vain kertoo, milloin kannattaa lisätä yksi lisäjarru ennen kuin raha liikkuu.";
-  }
-}
-
-function renderTrajectories(agg) {
-  const canvas = document.getElementById("trajectoryChart");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-
-  const { real, ghost, dark } = generateTrajectories(agg, 30);
-
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const margin = { left: 28, right: 10, top: 12, bottom: 18 };
-  const allVals = real.concat(ghost).concat(dark);
-  const maxVal = Math.max(...allVals, 1);
-  const minVal = Math.min(...allVals, -1);
-
-  const scaleX = (w - margin.left - margin.right) / Math.max(real.length - 1, 1);
-  const scaleY = (h - margin.top - margin.bottom) / (maxVal - minVal || 1);
-
-  function mapPoint(i, val) {
-    const x = margin.left + i * scaleX;
-    const y = h - margin.bottom - (val - minVal) * scaleY;
-    return { x, y };
-  }
-
-  // zero-line jos tarpeen
-  if (minVal < 0 && maxVal > 0) {
-    const zeroY = h - margin.bottom - (0 - minVal) * scaleY;
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(margin.left, zeroY);
-    ctx.lineTo(w - margin.right, zeroY);
-    ctx.stroke();
-  }
-
-  function drawLine(values, color, dash) {
-    ctx.beginPath();
-    values.forEach((val, i) => {
-      const p = mapPoint(i, val);
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.8;
-    if (dash) ctx.setLineDash(dash);
-    else ctx.setLineDash([]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  drawLine(ghost, "rgba(255,230,109,0.9)", [4, 4]); // ghost
-  drawLine(dark, "rgba(255,118,117,0.9)", [3, 3]); // dark
-  drawLine(real, "rgba(0,206,201,1)", null); // real
-
-  // future index (12 steps)
-  const indexEl = document.getElementById("future-index");
-  if (indexEl) {
-    const idx = Math.min(11, real.length - 1);
-    const val = real[idx] || 0;
-    indexEl.textContent = (val >= 0 ? "+" : "") + val.toFixed(0);
-  }
-
-  // Money Gravity
-  const grav = computeMoneyGravity(agg);
-  const gravEl = document.getElementById("gravity-text");
-  if (gravEl) {
-    gravEl.textContent = `Tällä hetkellä rahajärjestelmäsi painovoima suuntautuu kohti: ${grav.main}. ${grav.explanation}`;
+      "Tunne ei ole vihollinen. Se kertoo, milloin kannattaa lisätä yksi lisäjarru ennen kuin raha liikkuu.";
   }
 }
 
@@ -742,4 +821,12 @@ function formatEuro(x) {
   const sign = n < 0 ? "- " : "";
   const v = Math.abs(n).toFixed(0);
   return `${sign}${v} €`;
+}
+
+function emotionLabel(e) {
+  if (e === "calm") return "rauhallinen";
+  if (e === "tense") return "kireä";
+  if (e === "bored") return "tylsistynyt";
+  if (e === "euphoric") return "euforinen";
+  return e;
 }
