@@ -1,7 +1,7 @@
-// --------------------------
-// HOLOGRAM GRID
-// --------------------------
-const canvas = document.getElementById("holo-grid");
+//------------------------------------
+// HOLOGRAM GRID BACKGROUND
+//------------------------------------
+const canvas = document.getElementById("grid");
 const ctx = canvas.getContext("2d");
 
 function resizeCanvas() {
@@ -13,17 +13,17 @@ window.addEventListener("resize", resizeCanvas);
 
 function drawGrid() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "rgba(0,245,255,0.18)";
+  ctx.strokeStyle = "rgba(0,255,255,0.18)";
   ctx.lineWidth = 0.4;
-  const spacing = 42;
+  const step = 40;
 
-  for (let x = 0; x < canvas.width; x += spacing) {
+  for (let x = 0; x < canvas.width; x += step) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, canvas.height);
     ctx.stroke();
   }
-  for (let y = 0; y < canvas.height; y += spacing) {
+  for (let y = 0; y < canvas.height; y += step) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(canvas.width, y);
@@ -32,31 +32,32 @@ function drawGrid() {
 }
 setInterval(drawGrid, 80);
 
-// --------------------------
-// STATE
-// --------------------------
-const STORAGE_KEY = "sothis_x_vault_state_v1";
+//------------------------------------
+// STATE & STORAGE
+//------------------------------------
+const STORAGE_KEY = "sothis_lx_state_v1";
 
 let state = {
-  core: {
-    income: 0,
-    expenses: 0,
-    savings: 0,
-    debt: 0,
-    housingGoal: 0
-  },
-  history: {
-    good: 0,
-    bad: 0
-  }
+  income: 0,
+  expenses: 0,
+  savings: 0,
+  debt: 0,
+  housing: 0,
+  riskProfile: "balanced",
+  history: [] // { t, netWorth }
 };
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.core) state = parsed;
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      state = {
+        ...state,
+        ...parsed,
+        history: Array.isArray(parsed.history) ? parsed.history : []
+      };
     }
   } catch (e) {
     console.warn("State load failed", e);
@@ -67,9 +68,9 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-// --------------------------
-// HELPERS
-// --------------------------
+//------------------------------------
+// SMALL HELPERS
+//------------------------------------
 function euro(x) {
   if (x === null || x === undefined || isNaN(x)) return "–";
   const v = Math.round(x);
@@ -80,426 +81,429 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
-// --------------------------
-// CORE CALC
-// --------------------------
-function computeCore() {
-  const { income, expenses, savings, debt, housingGoal } = state.core;
-  const surplus = income - expenses;
-  const futureSavings = surplus * 12;
-  const futureNet = savings + futureSavings - debt;
-  const risk =
-    surplus < 0 ? "KORKEA" : surplus < income * 0.1 ? "KESKI" : "MATALA";
+// Box–Muller normaalijakauma
+function randomNormal(mean = 0, std = 1) {
+  let u = 0,
+    v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  return mean + std * z;
+}
 
-  let monthsToHouse = null;
-  if (housingGoal > 0 && surplus > 0) {
-    monthsToHouse = Math.max(0, Math.ceil((housingGoal - savings) / surplus));
+//------------------------------------
+// CORE FORECAST + MONTE CARLO + BAYES
+//------------------------------------
+function runMonteCarlo(months = 12, trials = 600) {
+  const { income, expenses, savings, debt, housing, riskProfile } = state;
+  const surplus = income - expenses;
+  let meanRet, vol; // monthly
+
+  if (riskProfile === "conservative") {
+    meanRet = 0.002; // 0.2% / kk
+    vol = 0.01;
+  } else if (riskProfile === "aggressive") {
+    meanRet = 0.007; // 0.7% / kk
+    vol = 0.04;
+  } else {
+    // balanced
+    meanRet = 0.004;
+    vol = 0.02;
   }
 
-  const bufferMonths =
-    expenses > 0 ? clamp(savings / expenses, 0, 9999) : null;
+  const monthlyInvest = Math.max(0, surplus) * (riskProfile === "aggressive" ? 0.5 : riskProfile === "balanced" ? 0.35 : 0.2);
 
-  // yksinkertainen Bayes-tyyppinen arvio
-  const good = state.history.good;
-  const bad = state.history.bad;
+  const results = [];
+  let successCount = 0;
+  let goalSuccessCount = 0;
+
+  for (let i = 0; i < trials; i++) {
+    let wealth = savings - debt;
+    let portfolio = Math.max(0, savings); // karkea jaottelu
+
+    for (let m = 0; m < months; m++) {
+      // kassavirta
+      wealth += surplus;
+
+      // sijoitus
+      portfolio += monthlyInvest;
+      const ret = randomNormal(meanRet, vol);
+      portfolio *= 1 + ret;
+
+      // yhdistä: varallisuus = portfolio + muu nettovarallisuus
+      wealth = portfolio - debt;
+    }
+
+    results.push(wealth);
+    if (wealth >= 0) successCount++;
+    if (housing > 0 && wealth >= housing) goalSuccessCount++;
+  }
+
+  results.sort((a, b) => a - b);
+  const median = results.length
+    ? results[Math.floor(results.length / 2)]
+    : 0;
+
+  const mcSuccess = successCount / trials;
+  const goalProb = housing > 0 ? goalSuccessCount / trials : mcSuccess;
+
+  return {
+    mcSuccess,
+    median,
+    vol,
+    goalProb
+  };
+}
+
+function computeBayesFromHistory() {
+  const hist = state.history;
+  if (!hist || hist.length < 2) {
+    // fallback: käytä kassavirran signaalia
+    const surplus = state.income - state.expenses;
+    return surplus > 0 ? 0.7 : 0.35;
+  }
+  let good = 0;
+  let bad = 0;
+  for (let i = 1; i < hist.length; i++) {
+    const prev = hist[i - 1].netWorth;
+    const cur = hist[i].netWorth;
+    if (cur >= prev) good++;
+    else bad++;
+  }
   const alpha = 1 + good;
   const beta = 1 + bad;
-  const bayesMean =
-    good + bad > 0 ? alpha / (alpha + beta) : surplus > 0 ? 0.7 : 0.3;
+  return alpha / (alpha + beta);
+}
 
-  // Monte Carlo -tyylinen arvio onnistumis-%:sta 12kk päästä
-  let mc = 0.5;
-  if (surplus > 0 && futureNet >= 0) mc = 0.8;
-  else if (surplus > 0 && futureNet < 0) mc = 0.6;
-  else if (surplus < 0 && futureNet < 0) mc = 0.3;
+function forecast() {
+  const { income, expenses, savings, debt, housing, riskProfile } = state;
+  const surplus = income - expenses;
+
+  // yksinkertainen deterministinen 12 kk
+  const futureNet = savings + surplus * 12 - debt;
+  const netWorthNow = savings - debt;
+
+  // Monte Carlo
+  const mc = runMonteCarlo(12, 600);
+
+  // Riskitaso MC:n ja kassavirran perusteella
+  let risk;
+  if (mc.mcSuccess < 0.4 || surplus < 0) risk = "KORKEA";
+  else if (mc.mcSuccess < 0.65) risk = "KESKI";
+  else risk = "MATALA";
+
+  // velan poistumisaika yksinkertaistettuna
+  let debtMonths = null;
+  if (surplus > 0 && debt > 0) {
+    // olett: osa ylijäämästä (40%) menee velkaan
+    const toDebt = surplus * 0.4;
+    if (toDebt > 0) debtMonths = Math.ceil(debt / toDebt);
+  }
+
+  // asuntotavoite aika nykyrytmissä (ei MC)
+  let houseMonths = null;
+  if (housing > 0 && surplus > 0) {
+    const effectiveSave = surplus * 0.35; // oletus
+    if (effectiveSave > 0) {
+      const missing = Math.max(0, housing - savings);
+      houseMonths = Math.ceil(missing / effectiveSave);
+    }
+  }
+
+  const bayesProb = computeBayesFromHistory();
+
+  // ghost: +10% enemmän säästöä / kk (vaikuttaa deterministic futureNet)
+  const ghostFutureNet = savings + surplus * 12 * 1.1 - debt;
 
   return {
     surplus,
     futureNet,
+    netWorthNow,
     risk,
-    monthsToHouse,
-    bufferMonths,
-    bayesMean,
-    mcSuccess: mc
+    debtMonths,
+    houseMonths,
+    mcSuccess: mc.mcSuccess,
+    mcMedian: mc.median,
+    mcVol: mc.vol,
+    goalProb: mc.goalProb,
+    bayesProb,
+    ghostFutureNet
   };
 }
 
-// --------------------------
-// RENDER CORE UI
-// --------------------------
-function renderCore() {
-  const { income, expenses, savings, debt, housingGoal } = state.core;
-  const agg = computeCore();
-
-  // cells
-  document.getElementById("cell-income").textContent = euro(income);
-  document.getElementById("cell-expenses").textContent = euro(expenses);
-  document.getElementById("cell-surplus").textContent = euro(agg.surplus);
-  document.getElementById("cell-savings").textContent = euro(savings);
-  document.getElementById("cell-debt").textContent = euro(debt);
-  document.getElementById("cell-forecast").textContent = euro(agg.futureNet);
-  document.getElementById("cell-risk").textContent = agg.risk;
-
-  if (agg.monthsToHouse != null && agg.monthsToHouse !== Infinity) {
-    document.getElementById("cell-housing").textContent =
-      agg.monthsToHouse + " kk";
-  } else {
-    document.getElementById("cell-housing").textContent = "–";
+//------------------------------------
+// HISTORY / SPARKLINE
+//------------------------------------
+function addSnapshot() {
+  const netWorthNow = state.savings - state.debt;
+  const now = Date.now();
+  state.history.push({ t: now, netWorth: netWorthNow });
+  if (state.history.length > 60) {
+    state.history.shift();
   }
-
-  // overview panel
-  const bayesEl = document.getElementById("cell-bayes");
-  const mcEl = document.getElementById("cell-mc");
-  if (bayesEl) {
-    bayesEl.textContent = (agg.bayesMean * 100).toFixed(1) + " %";
-  }
-  if (mcEl) {
-    mcEl.textContent = (agg.mcSuccess * 100).toFixed(0) + " %";
-  }
-
-  // goals panel
-  const ghm = document.getElementById("goal-housing-months");
-  const ght = document.getElementById("goal-housing-text");
-  const gbf = document.getElementById("goal-buffer");
-  const gbt = document.getElementById("goal-buffer-text");
-
-  if (ghm && ght) {
-    if (agg.monthsToHouse != null && agg.monthsToHouse !== Infinity) {
-      ghm.textContent = agg.monthsToHouse + " kk";
-      const years = (agg.monthsToHouse / 12).toFixed(1);
-      let prob = 0.4;
-      if (agg.mcSuccess > 0.7) prob = 0.75;
-      else if (agg.mcSuccess > 0.5) prob = 0.6;
-      ght.textContent =
-        "Nykyisellä tasolla realistinen arvio on noin " +
-        years +
-        " vuotta, ja onnistumistodennäköisyys on noin " +
-        Math.round(prob * 100) +
-        " % jos rytmi pysyy samana.";
-    } else {
-      ghm.textContent = "–";
-      ght.textContent = "Syötä asuntotavoite ja positiivinen ylijäämä.";
-    }
-  }
-
-  if (gbf && gbt) {
-    if (agg.bufferMonths != null && isFinite(agg.bufferMonths)) {
-      gbf.textContent = agg.bufferMonths.toFixed(1) + " kk";
-      if (agg.bufferMonths < 1) {
-        gbt.textContent =
-          "Hengitysvara on ohut. Jokainen lisäeuro säästöön kasvattaa holvin turvaa.";
-      } else if (agg.bufferMonths < 3) {
-        gbt.textContent =
-          "Sinulla on jonkin verran puskuria. 3–6 kk menot säästöissä on monen talousgurun peruslinja.";
-      } else {
-        gbt.textContent =
-          "Hengitysvara on hyvä. Nyt voidaan alkaa optimoida myös tuottoa, ei pelkkää turvaa.";
-      }
-    } else {
-      gbf.textContent = "–";
-      gbt.textContent = "Syötä säästöt ja menot, niin arvioin puskurin.";
-    }
-  }
-
-  jarvisCoreComment(agg);
 }
 
-// --------------------------
-// JARVIS CORE
-// --------------------------
-function jarvisCoreComment(agg) {
-  const out = document.getElementById("jarvis-output");
-  if (!out) return;
+function renderHistorySparkline() {
+  const container = document.getElementById("history-sparkline");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const hist = state.history;
+  if (!hist || hist.length === 0) {
+    container.textContent = "Ei historiaa vielä – jokainen päivitys tallentaa snapshotin.";
+    return;
+  }
+
+  const values = hist.map((h) => h.netWorth);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  values.forEach((v, idx) => {
+    const span = document.createElement("span");
+    const h = 10 + ((v - min) / range) * 30; // 10–40px
+    span.style.height = h + "px";
+    // väri neutraali / positiivinen / negatiivinen
+    if (idx > 0 && v < values[idx - 1]) {
+      span.style.background =
+        "linear-gradient(180deg,#ff7675,#d63031)";
+    } else if (v >= 0) {
+      span.style.background =
+        "linear-gradient(180deg,#00f5ff,#0091ff)";
+    } else {
+      span.style.background =
+        "linear-gradient(180deg,#ffeaa7,#fdcb6e)";
+    }
+    container.appendChild(span);
+  });
+}
+
+//------------------------------------
+// JARVIS ENGINE
+//------------------------------------
+function jarvisUpdate() {
+  const j = document.getElementById("jarvis-brief");
+  if (!j) return;
+
+  const r = forecast();
 
   let msg = "";
 
-  if (agg.surplus < 0) {
-    msg += "Kassavirta on negatiivinen. Ensimmäinen tavoite: käännetään se plussalle, vaikka 20 € kuussa. ";
-  } else if (agg.surplus < state.core.income * 0.1) {
-    msg += "Kassavirta on ohut, mutta plussalla. Yksi tai kaksi turhaa ostosta kuukaudessa voi kaataa tämän. ";
-  } else {
-    msg += "Kassavirta näyttää terveeltä. Nyt kyse on siitä, mihin suuntaat tämän ylijäämän. ";
-  }
-
-  if (agg.futureNet < 0) {
-    msg += "12 kuukauden ennuste on vielä miinuksella – velka tai kulutus painaa. ";
-  } else {
-    msg += "12 kuukauden ennuste näyttää plus-merkkiseltä, jos pysyt rytmissä. ";
-  }
-
-  if (agg.monthsToHouse != null && agg.monthsToHouse !== Infinity) {
-    msg += `Asuntotavoite on realistisesti saavutettavissa noin ${agg.monthsToHouse} kuukaudessa, jos jatkat samalla tasolla.`;
-  } else if (state.core.housingGoal > 0) {
-    msg += "Asuntotavoite on asetettu, mutta nykyinen ylijäämä ei riitä sen saavuttamiseen järkevässä ajassa. Tarvitsemme lisää ylijäämää.";
-  }
-
-  out.textContent = msg;
-}
-
-// --------------------------
-// CORE INPUT HANDLERS
-// --------------------------
-function initCoreInputs() {
-  // load values to inputs
-  document.getElementById("in-income").value =
-    state.core.income || "";
-  document.getElementById("in-expenses").value =
-    state.core.expenses || "";
-  document.getElementById("in-savings").value =
-    state.core.savings || "";
-  document.getElementById("in-debt").value =
-    state.core.debt || "";
-  document.getElementById("in-housing").value =
-    state.core.housingGoal || "";
-
-  document
-    .getElementById("btn-update-core")
-    .addEventListener("click", () => {
-      state.core.income =
-        parseFloat(document.getElementById("in-income").value) || 0;
-      state.core.expenses =
-        parseFloat(document.getElementById("in-expenses").value) || 0;
-      state.core.savings =
-        parseFloat(document.getElementById("in-savings").value) || 0;
-      state.core.debt =
-        parseFloat(document.getElementById("in-debt").value) || 0;
-      state.core.housingGoal =
-        parseFloat(document.getElementById("in-housing").value) || 0;
-
-      saveState();
-      renderCore();
-    });
-}
-
-// --------------------------
-// NAV
-// --------------------------
-function initNav() {
-  const buttons = document.querySelectorAll(".nav-btn");
-  const panels = {
-    overview: document.getElementById("panel-overview"),
-    purchase: document.getElementById("panel-purchase"),
-    bills: document.getElementById("panel-bills"),
-    goals: document.getElementById("panel-goals")
-  };
-
-  buttons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      buttons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const target = btn.getAttribute("data-panel");
-      Object.keys(panels).forEach((key) => {
-        panels[key].classList.toggle("active", key === target);
-      });
-    });
-  });
-
-  // start with overview
-  panels.overview.classList.add("active");
-}
-
-// --------------------------
-// PURCHASE AI
-// --------------------------
-function initPurchaseAI() {
-  const btn = document.getElementById("btn-analyze-purchase");
-  if (!btn) return;
-
-  btn.addEventListener("click", () => {
-    const amount =
-      parseFloat(document.getElementById("purchase-amount").value) ||
-      0;
-    const type = document.getElementById("purchase-type").value;
-    const freq = document.getElementById("purchase-frequency").value;
-
-    const summaryEl = document.getElementById("purchase-summary");
-    const ghostEl = document.getElementById("purchase-ghost");
-    const probEl = document.getElementById("purchase-prob");
-    const paybackEl = document.getElementById("purchase-payback");
-
-    if (!amount || amount <= 0) {
-      summaryEl.textContent = "Anna ensin ostoksen summa.";
-      ghostEl.textContent = "";
-      probEl.textContent = "";
-      paybackEl.textContent = "";
-      return;
-    }
-
-    const baseAgg = computeCore();
-
-    // ostos vs ghost-vaihtoehto
-    const monthlyImpact =
-      freq === "once" ? amount : amount * 12;
-
-    // skenaario: ostat
-    const withFutureNet = baseAgg.futureNet - monthlyImpact;
-
-    // ghost-skenaario: sama summa säästöön / velan lyhennykseen
-    let ghostFutureNet = baseAgg.futureNet;
-    if (type === "debt") {
-      ghostFutureNet = baseAgg.futureNet + amount; // velan väheneminen parantaa nettotilannetta
-    } else if (type === "invest" || type === "tool" || type === "experience") {
-      ghostFutureNet = baseAgg.futureNet + amount * 0.5; // oletetaan puoliksi palautuva investointi
+  // CFO
+  if (r.surplus > 0) {
+    msg += `CFO: Kassavirta on positiivinen (${euro(r.surplus)} / kk). `;
+    if (r.surplus > state.income * 0.25) {
+      msg += "Ylijäämä on vahva – tämä on varallisuuden kiihtyvä moottori. ";
     } else {
-      ghostFutureNet = baseAgg.futureNet + amount;
+      msg += "Ylijäämä on ok, mutta optimoitavissa nopeasti isommaksi. ";
     }
+  } else if (r.surplus < 0) {
+    msg += `CFO: Kassavirta on negatiivinen (${euro(
+      r.surplus
+    )} / kk). Ensimmäinen tavoite on kääntää tämä plussalle, vaikka 50 € kuussa. `;
+  } else {
+    msg += "CFO: Kassavirta on täsmälleen nolla. Se on hauras tasapaino. ";
+  }
 
-    const deltaReal = withFutureNet - baseAgg.futureNet;
-    const deltaGhost = ghostFutureNet - baseAgg.futureNet;
+  // RISK
+  if (r.risk === "KORKEA") {
+    msg +=
+      "Riskijärjestelmä: Punainen vyöhyke. MC-simulaatiot näyttävät paljon huonoja lopputuloksia, etenkin jos menot kasvavat. ";
+  } else if (r.risk === "KESKI") {
+    msg +=
+      "Riskijärjestelmä: Keltainen vyöhyke. Pieni virhe tai pari huonoa kuukautta voi kääntää suunnan. ";
+  } else {
+    msg +=
+      "Riskijärjestelmä: Sininen vyöhyke. Suurin riski on liiallinen mukavuus – järjestelmä on vahva, mutta sitä voi vielä vahvistaa. ";
+  }
 
-    summaryEl.textContent =
-      `Jos teet tämän ostoksen, 12 kk ennuste muuttuisi tasolta ${euro(
-        baseAgg.futureNet
-      )} tasolle ${euro(withFutureNet)} (${deltaReal >= 0 ? "+" : ""}${Math.round(
-        deltaReal
-      )} €).`;
+  // TRAJECTORY
+  if (r.futureNet > 0) {
+    msg += `Trajektori: Deterministinen 12 kk ennuste näyttää plussaa (${euro(
+      r.futureNet
+    )}). `;
+  } else {
+    msg += `Trajektori: Deterministinen 12 kk ennuste on vielä miinuksella (${euro(
+      r.futureNet
+    )}). `;
+  }
 
-    ghostEl.textContent =
-      `Jos sama raha menisi säästöön / velan lyhennykseen / sijoitukseen ghost-skenaariona, ennuste olisi ${euro(
-        ghostFutureNet
-      )} (${deltaGhost >= 0 ? "+" : ""}${Math.round(deltaGhost)} €).`;
+  msg += `MC: Todennäköisyys olla 12 kk päästä plussalla: ${Math.round(
+    r.mcSuccess * 100
+  )} %. Bayes-arvio käyttäytymishistoriasta: ${Math.round(
+    r.bayesProb * 100
+  )} %. `;
 
-    // Monte Carlo -tyyppinen todennäköisyys: käytetään yksinkertaista heuristiikkaa
-    let regretProb = 0.4;
-    if (type === "consumer" || type === "food") regretProb = 0.6;
-    if (freq === "monthly") regretProb += 0.15;
-    if (baseAgg.surplus < 0) regretProb += 0.2;
-    regretProb = clamp(regretProb, 0.1, 0.9);
+  // GOALS
+  if (r.houseMonths != null) {
+    const years = (r.houseMonths / 12).toFixed(1);
+    msg += `Asuntotavoite on nykyrytmissä noin ${r.houseMonths} kuukauden päässä (~${years} vuotta). Tavoitteen onnistumistodennäköisyys MC-simulaatiossa: ${Math.round(
+      r.goalProb * 100
+    )} %. `;
+  } else if (state.housing > 0) {
+    msg +=
+      "Asuntotavoite on asetettu, mutta nykyinen ylijäämä ei riitä realistiseen aikajanaan. Tarvitsemme enemmän ylijäämää tai pienemmän tavoitteen. ";
+  }
 
-    probEl.textContent =
-      `Arvioitu katumisriski seuraavan 30–90 päivän aikana: ${Math.round(
-        regretProb * 100
-      )} %. `;
+  // NEXT BEST MOVE
+  let nbm = "";
+  if (r.surplus <= 0) {
+    nbm = "Nosta ylijäämää vähintään 50–150 € / kk (tulot ylös, kulut alas). Se kääntää koko universumin suuntaa.";
+  } else if (r.futureNet < 0) {
+    nbm =
+      "Kohdista vähintään 30–40 % ylijäämästä velan purkuun. Kun velka laskee, ennustekäyrä nousee nopeasti plussalle.";
+  } else if (r.mcSuccess < 0.6 || r.bayesProb < 0.6) {
+    nbm =
+      "Nosta säästö- / sijoitusastetta 5–10 %-yksikköä. Tämä siirtää Monte Carlo -jakaumaa selvästi parempaan suuntaan.";
+  } else {
+    nbm =
+      "Holvi on rakenteellisesti terve. Seuraava taso on sijoitusten hajautus ja tuoton optimointi – ei enää selviytyminen vaan design.";
+  }
 
-    // takaisinmaksu / vaikutusaika
-    let paybackText = "";
-    if (type === "debt") {
-      paybackText = "Tämä liike lyhentää velkaa heti – kyse ei ole ostoksen takaisinmaksusta vaan velan purusta.";
-      state.history.good++;
+  msg += `Next Best Move: ${nbm}`;
+
+  j.textContent = msg;
+}
+
+//------------------------------------
+// UPDATE ALL UI
+//------------------------------------
+function updateVault() {
+  const r = forecast();
+
+  // Forecast layer
+  const mcPerc = Math.round(r.mcSuccess * 100);
+  document.getElementById("m-forecast").textContent = euro(r.futureNet);
+  document.getElementById("m-mc").textContent = mcPerc + " %";
+  document.getElementById("m-median").textContent = euro(r.mcMedian);
+
+  renderHistorySparkline();
+
+  // Risk layer
+  document.getElementById("m-risk").textContent = r.risk;
+  document.getElementById("m-vol").textContent =
+    (r.mcVol * 100).toFixed(1) + " % / kk";
+  if (r.debtMonths != null) {
+    document.getElementById("m-debtclear").textContent =
+      r.debtMonths + " kk";
+  } else if (state.debt > 0) {
+    document.getElementById("m-debtclear").textContent =
+      "Ei realistista nykyrytmissä";
+  } else {
+    document.getElementById("m-debtclear").textContent = "Ei velkaa";
+  }
+
+  // Goals layer
+  if (r.houseMonths != null) {
+    document.getElementById("m-housing").textContent =
+      r.houseMonths + " kk";
+  } else {
+    document.getElementById("m-housing").textContent = "–";
+  }
+  document.getElementById("m-prob").textContent =
+    Math.round(r.goalProb * 100) + " %";
+  document.getElementById("m-ghost").textContent = euro(r.ghostFutureNet);
+
+  jarvisUpdate();
+}
+
+//------------------------------------
+// SWIPE → LAYER CONTROL
+//------------------------------------
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener(
+  "touchstart",
+  (e) => {
+    if (!e.touches || e.touches.length === 0) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  },
+  { passive: true }
+);
+
+document.addEventListener(
+  "touchend",
+  (e) => {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // horizontal
+      if (dx < -50) {
+        // left
+        showLayer("forecast");
+      } else if (dx > 50) {
+        showLayer("risk");
+      }
     } else {
-      if (state.core.income > 0) {
-        const surplus = baseAgg.surplus;
-        if (surplus > 0) {
-          const monthsToRecover = monthlyImpact / Math.max(1, surplus);
-          paybackText =
-            "Nykyisellä kassavirralla tämä ostos 'katoaa' varallisuuskäyrältä noin " +
-            monthsToRecover.toFixed(1) +
-            " kuukauden sisällä, jos et lisää muita vastaavia menoja.";
-        } else {
-          paybackText =
-            "Koska kassavirta on tällä hetkellä negatiivinen tai hyvin ohut, tämä ostos jää roikkumaan varallisuuskäyrään pitkään.";
-          state.history.bad++;
-        }
+      // vertical
+      if (dy < -50) {
+        // up
+        showLayer("goals");
+      } else if (dy > 50) {
+        // down
+        hideLayers();
       }
     }
+  },
+  { passive: true }
+);
 
-    paybackEl.textContent = paybackText;
-    saveState();
-    renderCore(); // päivitä Bayes ja kokonaisnäkymä
-    jarvisPurchaseComment(amount, type, freq, deltaReal, deltaGhost, regretProb);
-  });
+function showLayer(which) {
+  hideLayers();
+  const el = document.getElementById("layer-" + which);
+  if (el) el.classList.add("active");
 }
 
-function jarvisPurchaseComment(amount, type, freq, deltaReal, deltaGhost, regretProb) {
-  const out = document.getElementById("jarvis-output");
-  if (!out) return;
-
-  let t = "";
-  if (deltaReal < 0 && Math.abs(deltaReal) > amount * 0.8) {
-    t +=
-      "Tämä ostos on raskaasti sinua vastaan taloudellisesti. Se syö enemmän tulevaa liikkumatilaa kuin pelkkä hinta kertoo. ";
-  } else if (deltaReal < 0) {
-    t +=
-      "Ostos on taloudellisesti neutraali–negatiivinen. Voit tehdä sen, mutta olisi järkevää sopia vastaliike, esim. yksi pienempi säästörutistus. ";
-  } else {
-    t +=
-      "Ostos ei näytä kaatavan järjestelmääsi. Todellinen kysymys on: vahvistaako se identiteettiäsi vai paikkaako se vain tunnetta. ";
-  }
-
-  if (deltaGhost > deltaReal) {
-    t +=
-      "Ghost-skenaario on merkittävästi vahvempi kuin ostosskenaario. Universumin näkökulmasta tulevaisuuden sinä kiittäisi, jos siirtäisit osan summasta säästöön tai velan maksuun. ";
-  }
-
-  t += `Arvioitu katumisriski ${Math.round(
-    regretProb * 100
-  )} %. Jos et ole varma, odota 24 tuntia ja katso tuntuuko osto vielä silloin yhtä tärkeältä.`;
-
-  out.textContent = t;
+function hideLayers() {
+  document
+    .querySelectorAll(".layer")
+    .forEach((l) => l.classList.remove("active"));
 }
 
-// --------------------------
-// BILLS / PAYSMART
-// --------------------------
-function initBills() {
-  const btn = document.getElementById("btn-analyze-bill");
-  if (!btn) return;
+//------------------------------------
+// INPUT HANDLERS
+//------------------------------------
+function initInputs() {
+  // load from state to inputs
+  document.getElementById("in-income").value = state.income || "";
+  document.getElementById("in-expenses").value = state.expenses || "";
+  document.getElementById("in-savings").value = state.savings || "";
+  document.getElementById("in-debt").value = state.debt || "";
+  document.getElementById("in-housing").value = state.housing || "";
+  document.getElementById("risk-profile").value =
+    state.riskProfile || "balanced";
 
-  btn.addEventListener("click", () => {
-    const amount =
-      parseFloat(document.getElementById("bill-amount").value) || 0;
-    const dueDay =
-      parseFloat(document.getElementById("bill-due").value) || null;
-    const summaryEl = document.getElementById("bill-summary");
+  document
+    .getElementById("btn-update")
+    .addEventListener("click", () => {
+      state.income =
+        parseFloat(document.getElementById("in-income").value) || 0;
+      state.expenses =
+        parseFloat(document.getElementById("in-expenses").value) || 0;
+      state.savings =
+        parseFloat(document.getElementById("in-savings").value) || 0;
+      state.debt =
+        parseFloat(document.getElementById("in-debt").value) || 0;
+      state.housing =
+        parseFloat(document.getElementById("in-housing").value) || 0;
+      state.riskProfile =
+        document.getElementById("risk-profile").value || "balanced";
 
-    if (!amount || !dueDay || dueDay < 1 || dueDay > 31) {
-      summaryEl.textContent =
-        "Anna laskun summa ja eräpäivä (1–31), niin arvioin optimaalisen maksupäivän.";
-      return;
-    }
-
-    const agg = computeCore();
-    const surplus = agg.surplus;
-
-    let suggestionDay;
-    let explanation = "";
-
-    if (surplus <= 0) {
-      suggestionDay = dueDay - 1;
-      if (suggestionDay < 1) suggestionDay = 1;
-      explanation =
-        "Kassavirta on kireä tai negatiivinen. Siksi paras strategia on maksaa lasku mahdollisimman lähellä eräpäivää, mutta ei myöhässä. ";
-    } else {
-      // yksinkertainen malli: maksa hieman ennen eräpäivää, jos puskuria on
-      suggestionDay = Math.round(dueDay * 0.7);
-      explanation =
-        "Koska kassavirta on plussalla, voit maksaa laskun hieman ennen eräpäivää ja pitää silti puskuria yllättäville menoille. ";
-    }
-
-    explanation += `Suositeltu maksupäivä on noin kuukauden ${suggestionDay}. päivä.`;
-
-    summaryEl.textContent = explanation;
-    jarvisBillsComment(amount, dueDay, suggestionDay, surplus);
-  });
+      addSnapshot();
+      saveState();
+      updateVault();
+    });
 }
 
-function jarvisBillsComment(amount, dueDay, suggestionDay, surplus) {
-  const out = document.getElementById("jarvis-output");
-  if (!out) return;
-
-  let t = `Analysoin laskun (${amount.toFixed(
-    0
-  )} €), jonka eräpäivä on kuukauden ${dueDay}. `;
-  if (surplus <= 0) {
-    t +=
-      "Koska kassavirta on nollan tuntumassa tai miinuksella, tärkeintä on pitää lasku ajallaan, mutta venyttää maksua hetkeen jolloin tuloja on sisällä. ";
-  } else {
-    t +=
-      "Koska kassavirta on plussalla, voimme olla aktiivisia: maksat hieman etukäteen, mutta et jää ilman puskuria. ";
-  }
-  t += `Tavoite ei ole maksaa mahdollisimman aikaisin, vaan maksaa siten, että hermosto pysyy rauhallisena ja holvi kasvaa.`;
-
-  out.textContent = t;
-}
-
-// --------------------------
+//------------------------------------
 // INIT
-// --------------------------
+//------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
   loadState();
-  initCoreInputs();
-  initNav();
-  initPurchaseAI();
-  initBills();
-  renderCore();
+  initInputs();
+  updateVault();
 });
