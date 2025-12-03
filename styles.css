@@ -23,19 +23,19 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: radial-gradient(circle at top, #020617 0, #000 45%, #020617 100%);
   color: var(--text-main);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Roboto", "Segoe UI", sans-serif;
-  height: 100%;
 }
 
 body {
   display: flex;
-  align-items: stretch;
   justify-content: center;
 }
 
@@ -61,8 +61,8 @@ body {
   padding: 16px 20px;
   border-radius: var(--radius-xl);
   background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 50%),
-              radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 55%),
-              rgba(15, 23, 42, 0.95);
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 55%),
+    rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(148, 163, 184, 0.35);
   box-shadow: var(--shadow-soft);
 }
@@ -120,15 +120,25 @@ body {
   margin-top: 4px;
 }
 
+.pricing-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.8);
+}
+
 /* Main layout */
 
 .app-main {
   display: grid;
-  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: 18px;
 }
 
-/* Cards */
+/* Left panel */
 
 .kpi-panel {
   display: flex;
@@ -154,7 +164,6 @@ body {
 
 .kpi-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   font-size: 13px;
   margin-bottom: 6px;
@@ -171,15 +180,49 @@ body {
 .warning-card {
   border: 1px solid rgba(250, 204, 21, 0.6);
   background: radial-gradient(circle at top, rgba(250, 204, 21, 0.12), transparent 60%),
-              rgba(15, 23, 42, 0.98);
+    rgba(15, 23, 42, 0.98);
 }
 
 .warning-card h2 {
   color: var(--warning);
 }
 
-.warning-card p {
-  font-size: 13px;
+.profile-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Autopilot */
+
+.autopilot-card {
+  border: 1px solid rgba(56, 189, 248, 0.7);
+  background: radial-gradient(circle at top, rgba(56,189,248,0.20), transparent 60%),
+              rgba(15,23,42,0.98);
+}
+
+.autopilot-card h2 {
+  color: var(--accent);
+}
+
+.autopilot-btn {
+  margin-top: 8px;
+  width: 100%;
+  font-size: 11px;
+  padding: 7px 10px;
+}
+
+.autopilot-card.autopilot-off {
+  border-color: rgba(148,163,184,0.4);
+  background: rgba(15,23,42,0.95);
+}
+
+.autopilot-card.autopilot-off h2 {
+  color: var(--text-muted);
+}
+
+.autopilot-card.autopilot-off #autopilot-status {
+  color: var(--text-muted);
 }
 
 /* Main panel */
@@ -188,11 +231,23 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transform-origin: center center;
+  transition: transform 0.08s ease-out;
 }
+
+/* Cockpit grid */
+
+.cockpit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* Chart containers */
 
 .chart-container {
   background: radial-gradient(circle at top center, rgba(56, 189, 248, 0.18), transparent 60%),
-              #020617;
+    #020617;
   border-radius: var(--radius-xl);
   border: 1px solid rgba(148, 163, 184, 0.4);
   padding: 16px 16px 18px;
@@ -213,67 +268,110 @@ body {
   font-size: 15px;
 }
 
-.chart-legend {
+.chart-actions {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 6px;
+}
+
+.tiny-btn {
+  padding: 4px 10px;
   font-size: 11px;
-  color: var(--text-muted);
-}
-
-.legend-line {
-  display: inline-block;
-  width: 22px;
-  height: 3px;
   border-radius: 999px;
-  margin-right: 3px;
-  vertical-align: middle;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-muted);
+  cursor: pointer;
 }
 
-.base-line {
-  background: var(--accent);
+.tiny-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-.ghost-line {
-  background: var(--accent-ghost);
+.tiny-btn.secondary {
+  opacity: 0.8;
 }
 
 /* Canvas */
 
-#trajectoryChart {
+#trajectoryChart,
+#calendarTimeline,
+#mcHistogram {
   width: 100%;
-  height: 260px;
+  height: 250px;
   border-radius: 16px;
   background: radial-gradient(circle at bottom, rgba(15, 23, 42, 0.95), #020617 65%, #000 100%);
   border: 1px solid rgba(30, 64, 175, 0.7);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.9);
 }
 
-/* Simulation area */
-
-.sim-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 14px;
-}
-
-.sim-form,
-.sim-result {
-  background: rgba(15, 23, 42, 0.98);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--card-border);
-  padding: 14px 14px 16px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.8);
-}
-
-.sim-form h2,
-.sim-result h2 {
-  margin: 0 0 10px;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+.chart-legend {
+  margin-top: 8px;
+  font-size: 11px;
   color: var(--text-muted);
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  border-radius: 999px;
+  margin-right: 4px;
+}
+
+.base-line {
+  background: #38bdf8;
+}
+
+.ghost-line {
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.everything-line {
+  background: #f97373;
+}
+
+/* Timeline legend */
+
+.timeline-legend {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  align-items: center;
+}
+
+.timeline-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-legend span::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.risk-low::before {
+  background: #22c55e;
+}
+
+.risk-mid::before {
+  background: #facc15;
+}
+
+.risk-high::before {
+  background: #f97373;
+}
+
+/* Inputs & buttons */
 
 label {
   display: block;
@@ -347,7 +445,31 @@ button.secondary:hover {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.9);
 }
 
-/* Results */
+/* Simulaatio */
+
+.sim-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.sim-form,
+.sim-result {
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  padding: 14px 14px 16px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.8);
+}
+
+.sim-form h2,
+.sim-result h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
 
 .result-list {
   list-style: none;
@@ -358,17 +480,12 @@ button.secondary:hover {
 
 .result-list li {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
 
 .result-list span {
   color: var(--text-muted);
-}
-
-.result-list strong {
-  font-weight: 600;
 }
 
 /* Footer */
@@ -378,6 +495,55 @@ button.secondary:hover {
   font-size: 11px;
   color: var(--text-muted);
   text-align: center;
+}
+
+/* Joystick */
+
+.joystick-wrapper {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 140px;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 999;
+  user-select: none;
+}
+
+.joystick-base {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(56,189,248,0.25), rgba(2,6,23,0.9));
+  border: 2px solid rgba(148,163,184,0.4);
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 0 25px rgba(56,189,248,0.5), inset 0 0 20px rgba(56,189,248,0.25);
+}
+
+.joystick-stick {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e0f2fe, #38bdf8 60%, #0a0f1c);
+  position: absolute;
+  top: 41px;
+  left: 41px;
+  transition: box-shadow 0.1s ease, transform 0.05s ease;
+  box-shadow: 0 5px 20px rgba(56,189,248,0.6);
+}
+
+.joystick-stick:active {
+  box-shadow: 0 0 35px rgba(56,189,248,1);
+}
+
+.joystick-label {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: rgba(148,163,184,0.8);
+  text-transform: uppercase;
 }
 
 /* Responsive */
@@ -398,6 +564,10 @@ button.secondary:hover {
   .sim-panel {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .cockpit-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 640px) {
@@ -414,7 +584,14 @@ button.secondary:hover {
     text-align: left;
   }
 
-  #trajectoryChart {
+  #trajectoryChart,
+  #calendarTimeline,
+  #mcHistogram {
     height: 220px;
+  }
+
+  .joystick-wrapper {
+    bottom: 16px;
+    right: 16px;
   }
 }
