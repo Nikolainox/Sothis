@@ -2,7 +2,7 @@
 <html lang="fi">
 <head>
   <meta charset="UTF-8">
-  <title>Ghost Finance – AI CFO</title>
+  <title>Ghost Finance – AI-CFO Cockpit</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -12,51 +12,114 @@
       <div class="brand">
         <div class="brand-logo">GF</div>
         <div class="brand-text">
-          <h1>Ghost Finance</h1>
-          <p>AI-CFO. Monte Carlo. Bayes. Behavior Engine.</p>
+          <h1>Ghost Finance – Cockpit</h1>
+          <p>AI-CFO · Monte Carlo · Bayes · Smart-kalenteri · Ghost-hologrammit</p>
         </div>
       </div>
       <div class="user-goal">
-        <span>Velkatavoite:</span>
-        <strong>Maksa velka. Rakenna holvi. Optimoi tulevaisuus.</strong>
+        <span>Tavoite</span>
+        <strong>Maksa velka, rakenna holvi, ohjaa talous kuin avaruusalusta.</strong>
+        <small class="pricing-tag">Visio: Pro 6 €/kk, logiikka on nyt sinulla.</small>
       </div>
     </header>
 
     <main class="app-main">
-      <!-- KPI paneeli -->
+      <!-- Vasen paneeli: KPI, psyko, profiili, CFO & autopilot -->
       <section class="kpi-panel">
         <div class="kpi-card">
           <h2>Nykyinen tila</h2>
           <div class="kpi-row"><span>Säästöt</span><strong id="kpi-savings">0 €</strong></div>
           <div class="kpi-row"><span>Velka</span><strong id="kpi-debt">0 €</strong></div>
           <div class="kpi-row"><span>Netto / kk</span><strong id="kpi-net-monthly">0 €</strong></div>
-          <div class="kpi-row"><span>Velaton aika:</span><strong id="kpi-debt-free-date">–</strong></div>
+          <div class="kpi-row"><span>Velaton aika</span><strong id="kpi-debt-free-date">–</strong></div>
         </div>
 
         <div class="kpi-card">
           <h2>Psykologinen profiili</h2>
-          <p id="behavior-summary">Mallinnetaan…</p>
-          <p id="bayes-prob">Impulssiostos todennäköisyys: –</p>
+          <p id="behavior-summary">Mallinnetaan ostokäyttäytymistäsi…</p>
+          <p id="bayes-prob">Impulssiostos riski: –</p>
+        </div>
+
+        <div class="kpi-card">
+          <h2>Profiili & asetukset</h2>
+
+          <label for="profile-savings">Nykyiset säästöt (€)</label>
+          <input type="number" id="profile-savings" min="0" step="100">
+
+          <label for="profile-debt">Velka yhteensä (€)</label>
+          <input type="number" id="profile-debt" min="0" step="100">
+
+          <label for="profile-income">Tulosi / kk (€)</label>
+          <input type="number" id="profile-income" min="0" step="50">
+
+          <label for="profile-expenses">Kulusi / kk (€)</label>
+          <input type="number" id="profile-expenses" min="0" step="50">
+
+          <label for="profile-interest">Velan korko % / vuosi</label>
+          <input type="number" id="profile-interest" min="0" step="0.1">
+
+          <button id="profile-save-btn">Tallenna profiili</button>
+          <p class="profile-note">Tiedot tallentuvat vain tälle laitteelle (localStorage).</p>
         </div>
 
         <div class="kpi-card warning-card">
           <h2>Jarvis CFO</h2>
-          <p id="cfo-message">Valmis analysoimaan seuraavan ostoksen.</p>
+          <p id="cfo-message">Valmis analysoimaan ostoksesi ja tulevaisuutesi.</p>
+        </div>
+
+        <div class="kpi-card autopilot-card" id="autopilot-card">
+          <h2>Autopilot</h2>
+          <p id="autopilot-status">AUTOPILOT: AKTIIVINEN · Reitti lukittu</p>
+          <p id="autopilot-stats">Korjaukset tänään: 0 · Override: 0</p>
+          <button id="autopilot-toggle" class="autopilot-btn">Autopilot: ON</button>
+          <p class="profile-note">
+            Autopilot estää ostokset, jotka siirtävät velattomuutta liikaa tai romuttavat net worth -ennustetta.
+          </p>
         </div>
       </section>
 
-      <!-- Keskipaneeli -->
+      <!-- Oikea paneeli: cockpit + smart-kalenteri + Monte Carlo + simulaattori -->
       <section class="main-panel">
-        <div class="chart-container">
-          <h2>Ghost-trajectory (24 kk)</h2>
-          <canvas id="trajectoryChart"></canvas>
+        <!-- Cockpit-yläosa -->
+        <div class="cockpit-grid">
+          <div class="chart-container">
+            <div class="chart-header">
+              <h2>Ghost-trajectory (24 kk)</h2>
+              <div class="chart-actions">
+                <button id="ghost-everything-btn" class="tiny-btn">Haamu: osta kaikki</button>
+                <button id="ghost-clear-btn" class="tiny-btn secondary">Tyhjennä haamu</button>
+              </div>
+            </div>
+            <canvas id="trajectoryChart"></canvas>
+            <div class="chart-legend">
+              <span class="legend-dot base-line"></span> Peruspolku
+              <span class="legend-dot ghost-line"></span> Ostoksen jälkeinen
+              <span class="legend-dot everything-line"></span> Haamu: osta kaikki
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <h2>Smart-kalenteri – Aikajana (90 pv)</h2>
+            </div>
+            <canvas id="calendarTimeline"></canvas>
+            <div class="timeline-legend">
+              <span class="risk-low">Rauhallinen päivä</span>
+              <span class="risk-mid">Varovainen päivä</span>
+              <span class="risk-high">Impulssi & danger zone</span>
+            </div>
+          </div>
         </div>
 
+        <!-- Monte Carlo -->
         <div class="chart-container">
-          <h2>Monte Carlo – varallisuusjakauma</h2>
+          <div class="chart-header">
+            <h2>Monte Carlo – varallisuusjakauma (24 kk)</h2>
+          </div>
           <canvas id="mcHistogram"></canvas>
         </div>
 
+        <!-- Simulaattori -->
         <div class="sim-panel">
           <div class="sim-form">
             <h2>Simuloi ostos</h2>
@@ -80,10 +143,10 @@
           <div class="sim-result">
             <h2>AI-CFO arvio</h2>
             <ul class="result-list">
-              <li><span>Velaton ero:</span><strong id="result-debt-diff">–</strong></li>
-              <li><span>Säästöero:</span><strong id="result-savings-diff">–</strong></li>
-              <li><span>Riskitaso:</span><strong id="result-risk">–</strong></li>
-              <li><span>Ostopäätös:</span><strong id="result-afford">–</strong></li>
+              <li><span>Velaton ero</span><strong id="result-debt-diff">–</strong></li>
+              <li><span>Varallisuusero</span><strong id="result-savings-diff">–</strong></li>
+              <li><span>Riskitaso</span><strong id="result-risk">–</strong></li>
+              <li><span>Ostopäätös</span><strong id="result-afford">–</strong></li>
             </ul>
           </div>
         </div>
@@ -91,8 +154,16 @@
     </main>
 
     <footer class="app-footer">
-      <p>Ghost Finance © AI-CFO – Monte Carlo, Bayes, Psychological Engine.</p>
+      <p>Ghost Finance – oma avaruusaluksesi taloudessa. AI-CFO, ghost-viivat, smart-kalenteri ja psykologinen ostokone yhdessä.</p>
     </footer>
+  </div>
+
+  <!-- JOYSTICK CONTROLLER -->
+  <div class="joystick-wrapper">
+    <div class="joystick-base">
+      <div id="joystick" class="joystick-stick"></div>
+    </div>
+    <div class="joystick-label">NAV / CONTROL</div>
   </div>
 
   <script src="app.js" defer></script>
